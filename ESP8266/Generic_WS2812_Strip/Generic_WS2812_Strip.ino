@@ -15,7 +15,6 @@ IPAddress submask(255, 255, 255,   0);
 #define LIGHT_VERSION 3.1
 #define LIGHT_NAME_MAX_LENGTH 32 // Longer name will get stripped
 #define ENTERTAINMENT_TIMEOUT 1500 // millis
-#define POWER_MOSFET_PIN 13 // WS2812 consume ~1mA/led when off. By installing a MOSFET it will cut the power to the leds when lights ore off.
 
 struct state {
   uint8_t colors[3], bri = 100, sat = 254, colorMode = 2;
@@ -24,8 +23,8 @@ struct state {
   float stepLevel[3], currentColors[3], x, y;
 };
 
-state lights[10];
-bool inTransition, entertainmentRun, mosftetState, useDhcp = true;
+state lights[100];
+bool inTransition, entertainmentRun, useDhcp = true;
 byte mac[6], packetBuffer[46];
 unsigned long lastEPMillis;
 
@@ -35,25 +34,25 @@ uint8_t scene, startup, onPin = 4, offPin = 5;
 bool hwSwitch = false;
 uint8_t rgb_multiplier[] = {100, 100, 100}; // light multiplier in percentage /R, G, B/
 
-uint8_t lightsCount = 3;
-uint16_t dividedLightsArray[30];
+uint8_t lightsCount = 1;
+uint16_t dividedLightsArray[100];
 
-uint16_t pixelCount = 60;
-uint8_t transitionLeds = 6; // pixelCount must be divisible by this value
+uint16_t pixelCount = 100, lightLedsCount;
+uint8_t transitionLeds = 1; // pixelCount must be divisible by this value
 
 ESP8266WebServer server(80);
 WiFiUDP Udp;
 ESP8266HTTPUpdateServer httpUpdateServer;
 
-RgbColor red = RgbColor(255, 0, 0);
-RgbColor green = RgbColor(0, 255, 0);
+RgbColor red = RgbColor(0, 255, 0);
+RgbColor green = RgbColor(255, 0, 0);
 RgbColor white = RgbColor(255);
 RgbColor black = RgbColor(0);
 
 NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoBrgFeature, Neo800KbpsMethod>* strip = NULL; // WS2811
 
-void convertHue(uint8_t light) // convert hue / sat values from HUE API to RGB
+void convertHue(uint8_t light)
 {
   double      hh, p, q, t, ff, s, v;
   long        i;
@@ -113,7 +112,7 @@ void convertHue(uint8_t light) // convert hue / sat values from HUE API to RGB
 
 }
 
-void convertXy(uint8_t light) // convert CIE xy values from HUE API to RGB
+void convertXy(uint8_t light)
 {
   int optimal_bri = lights[light].bri;
   if (optimal_bri < 5) {
@@ -171,8 +170,7 @@ void convertXy(uint8_t light) // convert CIE xy values from HUE API to RGB
   lights[light].colors[0] = (int) (r * optimal_bri); lights[light].colors[1] = (int) (g * optimal_bri); lights[light].colors[2] = (int) (b * optimal_bri);
 }
 
-void convertCt(uint8_t light) // convert ct (color temperature) value from HUE API to RGB
-{
+void convertCt(uint8_t light) {
   int hectemp = 10000 / lights[light].ct;
   int r, g, b;
   if (hectemp <= 66) {
@@ -197,7 +195,7 @@ void convertCt(uint8_t light) // convert ct (color temperature) value from HUE A
   lights[light].colors[0] = r * (lights[light].bri / 255.0f); lights[light].colors[1] = g * (lights[light].bri / 255.0f); lights[light].colors[2] = b * (lights[light].bri / 255.0f);
 }
 
-void handleNotFound() { // default webserver response for unknow requests
+void handleNotFound() {
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += server.uri();
@@ -212,7 +210,7 @@ void handleNotFound() { // default webserver response for unknow requests
   server.send(404, "text/plain", message);
 }
 
-void infoLight(RgbColor color) { // boot animation for leds count and wifi test
+void infoLight(RgbColor color) {
   // Flash the strip in the selected color. White = booted, green = WLAN connected, red = WLAN could not connect
   for (int i = 0; i < pixelCount; i++)
   {
@@ -225,7 +223,7 @@ void infoLight(RgbColor color) { // boot animation for leds count and wifi test
 }
 
 
-void apply_scene(uint8_t new_scene) { // these are internal scenes store in light firmware that can be applied on boot and manually from light web interface
+void apply_scene(uint8_t new_scene) {
   for (uint8_t light = 0; light < lightsCount; light++) {
     if ( new_scene == 1) {
       lights[light].bri = 254; lights[light].ct = 346; lights[light].colorMode = 2; convertCt(light);
@@ -253,8 +251,8 @@ void apply_scene(uint8_t new_scene) { // these are internal scenes store in ligh
   }
 }
 
-void processLightdata(uint8_t light, float transitiontime) { // calculate the step level of every RGB channel for a smooth transition in requested transition time
-  transitiontime *= 17 - (pixelCount / 40); //every extra led add a small delay that need to be counted for transition time match 
+void processLightdata(uint8_t light, float transitiontime) {
+  transitiontime *= 17 - (pixelCount / 40); //every extra led add a small delay that need to be counted
   if (lights[light].colorMode == 1 && lights[light].lightState == true) {
     convertXy(light);
   } else if (lights[light].colorMode == 2 && lights[light].lightState == true) {
@@ -271,7 +269,7 @@ void processLightdata(uint8_t light, float transitiontime) { // calculate the st
   }
 }
 
-RgbColor blending(float left[3], float right[3], uint8_t pixel) { // return RgbColor based on neighbour leds
+RgbColor blending(float left[3], float right[3], uint8_t pixel) {
   uint8_t result[3];
   for (uint8_t i = 0; i < 3; i++) {
     float percent = (float) pixel / (float) (transitionLeds + 1);
@@ -280,99 +278,37 @@ RgbColor blending(float left[3], float right[3], uint8_t pixel) { // return RgbC
   return RgbColor((uint8_t)result[0], (uint8_t)result[1], (uint8_t)result[2]);
 }
 
-RgbColor convFloat(float color[3]) { // return RgbColor from float
+RgbColor convInt(float color[3]) {
+  return RgbColor((uint8_t)color[0], (uint8_t)color[1], (uint8_t)color[2]);
+}
+
+RgbColor convFloat(float color[3]) {
   return RgbColor((uint8_t)color[0], (uint8_t)color[1], (uint8_t)color[2]);
 }
 
 
-void cutPower() {
-  bool any_on = false;
+void lightEngine() {
   for (int light = 0; light < lightsCount; light++) {
     if (lights[light].lightState) {
-      any_on = true;
-    }
-  }
-  if (!any_on && !inTransition && mosftetState) {
-    digitalWrite(POWER_MOSFET_PIN, LOW);
-    mosftetState = false;
-  } else if (any_on && !mosftetState){
-    digitalWrite(POWER_MOSFET_PIN, HIGH);
-    mosftetState = true;
-  }
-}
-
-void lightEngine() {  // core function executed in loop()
-  for (int light = 0; light < lightsCount; light++) { // loop with every virtual light
-    if (lights[light].lightState) { // if light in on
-      if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2]) { // if not all RGB channels of the light are at desired level
+      if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2]) {
         inTransition = true;
-        for (uint8_t k = 0; k < 3; k++) { // loop with every RGB channel of the light
-          if (lights[light].colors[k] != lights[light].currentColors[k]) lights[light].currentColors[k] += lights[light].stepLevel[k]; // move RGB channel on step closer to desired level
-          if ((lights[light].stepLevel[k] > 0.0 && lights[light].currentColors[k] > lights[light].colors[k]) || (lights[light].stepLevel[k] < 0.0 && lights[light].currentColors[k] < lights[light].colors[k])) lights[light].currentColors[k] = lights[light].colors[k]; // if the current level go below desired level apply directly the desired level.
+        for (uint8_t k = 0; k < 3; k++) {
+          if (lights[light].colors[k] != lights[light].currentColors[k]) lights[light].currentColors[k] += lights[light].stepLevel[k];
+          if ((lights[light].stepLevel[k] > 0.0 && lights[light].currentColors[k] > lights[light].colors[k]) || (lights[light].stepLevel[k] < 0.0 && lights[light].currentColors[k] < lights[light].colors[k])) lights[light].currentColors[k] = lights[light].colors[k];
         }
-        if (lightsCount > 1) { // if are more then 1 virtual light we need to apply transition leds (set in the web interface)
-          if (light == 0) { // if is the first light we must not have transition leds at the beginning 
-            for (int pixel = 0; pixel < dividedLightsArray[0]; pixel++) // loop with all leds of the light (declared in web interface)
+        if (lightsCount > 1) {
+          if (light == 0) {
+            for (int pixel = 0; pixel < dividedLightsArray[0]; pixel++)
             {
-              if (pixel < dividedLightsArray[0] - transitionLeds / 2) { // apply raw color if we are outside transition leds
+              if (pixel < dividedLightsArray[0] - transitionLeds / 2) {
                 strip->SetPixelColor(pixel, convFloat(lights[light].currentColors));
               } else {
-                strip->SetPixelColor(pixel, blending(lights[0].currentColors, lights[1].currentColors, pixel + 1 - (dividedLightsArray[0] - transitionLeds / 2 ))); // calculate the transition led color 
-              }
-            }
-          }
-          else { // is not the first virtual light
-            for (int pixel = 0; pixel < dividedLightsArray[light]; pixel++) // loop with all leds of the light 
-            {
-              long pixelSum;
-              for (int value = 0; value < light; value++)
-              {
-                if (value + 1 == light) {
-                  pixelSum += dividedLightsArray[value] - transitionLeds;
-                }
-                else {
-                  pixelSum += dividedLightsArray[value];
-                }
-              }
-
-              if (pixel < transitionLeds / 2) { // beginning transition leds
-                strip->SetPixelColor(pixel + pixelSum + transitionLeds, blending( lights[light - 1].currentColors, lights[light].currentColors, pixel + 1));
-              }
-              else if (pixel > dividedLightsArray[light] - transitionLeds / 2 - 1) {  // end of transition leds
-                //Serial.println(String(pixel));
-                strip->SetPixelColor(pixel + pixelSum + transitionLeds, blending( lights[light].currentColors, lights[light + 1].currentColors, pixel + transitionLeds / 2 - dividedLightsArray[light]));
-              }
-              else  { // outside transition leds (apply raw color)
-                strip->SetPixelColor(pixel + pixelSum + transitionLeds, convFloat(lights[light].currentColors));
-              }
-              pixelSum = 0;
-            }
-          }
-        } else { // strip has only one virtual light so apply raw color to entire strip
-          strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
-        }
-        strip->Show(); //show what was calculated previously 
-      }
-    } else { // if light in off, calculate the dimming effect only
-      if (lights[light].currentColors[0] != 0 || lights[light].currentColors[1] != 0 || lights[light].currentColors[2] != 0) { // proceed forward only in case not all RGB channels are zero
-        inTransition = true;
-        for (uint8_t k = 0; k < 3; k++) { //loop with every RGB channel
-          if (lights[light].currentColors[k] != 0) lights[light].currentColors[k] -= lights[light].stepLevel[k]; // remove one step level
-          if (lights[light].currentColors[k] < 0) lights[light].currentColors[k] = 0; // save condition, if level go below zero set it to zero
-        }
-        if (lightsCount > 1) { // if the strip has more than one light
-          if (light == 0) { // if is the first light of the strip
-            for (int pixel = 0; pixel < dividedLightsArray[0]; pixel++) // loop with every led of the virtual light
-            {
-              if (pixel < dividedLightsArray[0] - transitionLeds / 2) { // leds until transition zone apply raw color
-                strip->SetPixelColor(pixel, convFloat(lights[light].currentColors));
-              } else { // leds in transition zone apply the transition color
                 strip->SetPixelColor(pixel, blending(lights[0].currentColors, lights[1].currentColors, pixel + 1 - (dividedLightsArray[0] - transitionLeds / 2 )));
               }
             }
           }
-          else { // is not the first light
-            for (int pixel = 0; pixel < dividedLightsArray[light]; pixel++) // loop with every led
+          else {
+            for (int pixel = 0; pixel < dividedLightsArray[light]; pixel++)
             {
               long pixelSum;
               for (int value = 0; value < light; value++)
@@ -385,42 +321,93 @@ void lightEngine() {  // core function executed in loop()
                 }
               }
 
-              if (pixel < transitionLeds / 2) { // leds in beginning of transition zone must apply blending
+              if (pixel < transitionLeds / 2) {
                 strip->SetPixelColor(pixel + pixelSum + transitionLeds, blending( lights[light - 1].currentColors, lights[light].currentColors, pixel + 1));
               }
-              else if (pixel > dividedLightsArray[light] - transitionLeds / 2 - 1) { // leds in the end of transition zone must apply blending
+              else if (pixel > dividedLightsArray[light] - transitionLeds / 2 - 1) {
                 //Serial.println(String(pixel));
                 strip->SetPixelColor(pixel + pixelSum + transitionLeds, blending( lights[light].currentColors, lights[light + 1].currentColors, pixel + transitionLeds / 2 - dividedLightsArray[light]));
               }
-              else  { // leds outside transition zone apply raw color
+              else  {
                 strip->SetPixelColor(pixel + pixelSum + transitionLeds, convFloat(lights[light].currentColors));
               }
               pixelSum = 0;
             }
           }
-        } else { // is just one virtual light declared, apply raw color to all leds
+        } else {
+          strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
+        }
+        strip->Show();
+      }
+    } else {
+      if (lights[light].currentColors[0] != 0 || lights[light].currentColors[1] != 0 || lights[light].currentColors[2] != 0) {
+        inTransition = true;
+        for (uint8_t k = 0; k < 3; k++) {
+          if (lights[light].currentColors[k] != 0) lights[light].currentColors[k] -= lights[light].stepLevel[k];
+          if (lights[light].currentColors[k] < 0) lights[light].currentColors[k] = 0;
+        }
+        if (lightsCount > 1) {
+          if (light == 0) {
+            for (int pixel = 0; pixel < dividedLightsArray[0]; pixel++)
+            {
+              if (pixel < dividedLightsArray[0] - transitionLeds / 2) {
+                strip->SetPixelColor(pixel, convFloat(lights[light].currentColors));
+              } else {
+                strip->SetPixelColor(pixel, blending(lights[0].currentColors, lights[1].currentColors, pixel + 1 - (dividedLightsArray[0] - transitionLeds / 2 )));
+              }
+            }
+          }
+          else {
+            for (int pixel = 0; pixel < dividedLightsArray[light]; pixel++)
+            {
+              long pixelSum;
+              for (int value = 0; value < light; value++)
+              {
+                if (value + 1 == light) {
+                  pixelSum += dividedLightsArray[value] - transitionLeds;
+                }
+                else {
+                  pixelSum += dividedLightsArray[value];
+                }
+              }
+
+              if (pixel < transitionLeds / 2) {
+                strip->SetPixelColor(pixel + pixelSum + transitionLeds, blending( lights[light - 1].currentColors, lights[light].currentColors, pixel + 1));
+              }
+              else if (pixel > dividedLightsArray[light] - transitionLeds / 2 - 1) {
+                //Serial.println(String(pixel));
+                strip->SetPixelColor(pixel + pixelSum + transitionLeds, blending( lights[light].currentColors, lights[light + 1].currentColors, pixel + transitionLeds / 2 - dividedLightsArray[light]));
+              }
+              else  {
+                strip->SetPixelColor(pixel + pixelSum + transitionLeds, convFloat(lights[light].currentColors));
+              }
+              pixelSum = 0;
+            }
+          }
+        } else {
           strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
         }
         strip->Show();
       }
     }
   }
-  cutPower(); // if all lights are off GPIO12 can cut the power to the strip using a powerful P-Channel MOSFET
-  if (inTransition) { // wait 6ms for a nice transition effect
+  if (inTransition) {
     delay(6);
-    inTransition = false; // set inTransition bash to false (will be set bach to true on next level execution if desired state is not reached)
-  } else if (hwSwitch == true) { // if you want to use some GPIO's for on/off and brightness controll
-    if (digitalRead(onPin) == HIGH) { // on button pressed
+    inTransition = false;
+  } else if (hwSwitch == true) {
+    if (digitalRead(onPin) == HIGH) {
       int i = 0;
-      while (digitalRead(onPin) == HIGH && i < 30) { // count how log is the button pressed
+      while (digitalRead(onPin) == HIGH && i < 30) {
         delay(20);
         i++;
       }
       for (int light = 0; light < lightsCount; light++) {
-        if (i < 30) { // there was a short press
+        if (i < 30) {
+          // there was a short press
           lights[light].lightState = true;
         }
-        else { // there was a long press
+        else {
+          // there was a long press
           lights[light].bri += 56;
           if (lights[light].bri > 255) {
             // don't increase the brightness more then maximum value
@@ -428,7 +415,7 @@ void lightEngine() {  // core function executed in loop()
           }
         }
       }
-    } else if (digitalRead(offPin) == HIGH) { // off button pressed
+    } else if (digitalRead(offPin) == HIGH) {
       int i = 0;
       while (digitalRead(offPin) == HIGH && i < 30) {
         delay(20);
@@ -452,7 +439,7 @@ void lightEngine() {  // core function executed in loop()
   }
 }
 
-void saveState() { // save the lights state on SPIFFS partition in JSON format
+void saveState() {
   DynamicJsonDocument json(1024);
   for (uint8_t i = 0; i < lightsCount; i++) {
     JsonObject light = json.createNestedObject((String)i);
@@ -473,7 +460,7 @@ void saveState() { // save the lights state on SPIFFS partition in JSON format
 
 }
 
-void restoreState() { // restore the lights state from SPIFFS partition
+void restoreState() {
   File stateFile = SPIFFS.open("/state.json", "r");
   if (!stateFile) {
     saveState();
@@ -513,7 +500,7 @@ void restoreState() { // restore the lights state from SPIFFS partition
 }
 
 
-bool saveConfig() { // save config in SPIFFS partition in JSON file
+bool saveConfig() {
   DynamicJsonDocument json(1024);
   json["name"] = lightName;
   json["startup"] = startup;
@@ -556,7 +543,7 @@ bool saveConfig() { // save config in SPIFFS partition in JSON file
   return true;
 }
 
-bool loadConfig() { // load the configuration from SPIFFS partition
+bool loadConfig() {
   File configFile = SPIFFS.open("/config.json", "r");
   if (!configFile) {
     //Serial.println("Create new file with default values");
@@ -570,7 +557,7 @@ bool loadConfig() { // load the configuration from SPIFFS partition
   }
 
   if (configFile.size() > 1024) {
-    //Serial.println("Config file size is too large");
+    Serial.println("Config file size is too large");
     return false;
   }
 
@@ -605,7 +592,7 @@ bool loadConfig() { // load the configuration from SPIFFS partition
   return true;
 }
 
-void ChangeNeoPixels(uint16_t newCount) // this set the number of leds of the strip based on web configuration
+void ChangeNeoPixels(uint16_t newCount)
 {
   if (strip != NULL) {
     delete strip; // delete the previous dynamically created strip
@@ -616,12 +603,9 @@ void ChangeNeoPixels(uint16_t newCount) // this set the number of leds of the st
 }
 
 void setup() {
-  //Serial.begin(115200);
-  //Serial.println();
+  Serial.begin(115200);
+  Serial.println();
   delay(1000);
-
-  pinMode(POWER_MOSFET_PIN, OUTPUT);
-  digitalWrite(POWER_MOSFET_PIN, HIGH); mosftetState = true; // reuired if HIGH logic power the strip, otherwise must be commented.
 
   //Serial.println("mounting FS...");
 
@@ -630,6 +614,7 @@ void setup() {
     return;
   }
 
+ 
   if (!loadConfig()) {
     //Serial.println("Failed to load config");
   } else {
@@ -638,6 +623,7 @@ void setup() {
 
   dividedLightsArray[lightsCount];
 
+  lightLedsCount = pixelCount / lightsCount;
 
   ChangeNeoPixels(pixelCount);
 
@@ -660,13 +646,13 @@ void setup() {
     }
   }
   WiFi.mode(WIFI_STA);
-  WiFiManager wifiManager; // wifimanager will start the configuration SSID if wifi connection is not succesfully 
+  WiFiManager wifiManager;
 
   if (!useDhcp) {
     wifiManager.setSTAStaticIPConfig(address, gateway, submask);
   }
 
-  if (!wifiManager.autoConnect(lightName)) { // light was not connected to wifi and not configured so reset.
+  if (!wifiManager.autoConnect(lightName)) {
     delay(3000);
     ESP.reset();
     delay(5000);
@@ -679,14 +665,14 @@ void setup() {
   }
 
 
-  if (! lights[0].lightState) { // test if light zero (must be at last one light) is not set to ON
-    infoLight(white); // play white anymation
-    while (WiFi.status() != WL_CONNECTED) { // connection to wifi still not ready
-      infoLight(red); // play red animation
+  if (! lights[0].lightState) {
+    infoLight(white);
+    while (WiFi.status() != WL_CONNECTED) {
+      infoLight(red);
       delay(500);
     }
     // Show that we are connected
-    infoLight(green); // connected, play green animation
+    infoLight(green);
 
   }
 
@@ -696,16 +682,16 @@ void setup() {
   WiFi.hostname("hue-" + hostname);
   WiFi.macAddress(mac);
 
-  httpUpdateServer.setup(&server); // start http server
+  httpUpdateServer.setup(&server);
 
-  Udp.begin(2100); // start entertainment UDP server
+  Udp.begin(2100);
 
-  if (hwSwitch == true) { // set buttons pins mode in case are used
+  if (hwSwitch == true) {
     pinMode(onPin, INPUT);
     pinMode(offPin, INPUT);
   }
-  
-  server.on("/state", HTTP_PUT, []() { // HTTP PUT request used to set a new light state
+
+  server.on("/state", HTTP_PUT, []() {
     bool stateSave = false;
     DynamicJsonDocument root(1024);
     DeserializationError error = deserializeJson(root, server.arg("plain"));
@@ -780,7 +766,7 @@ void setup() {
     }
   });
 
-  server.on("/state", HTTP_GET, []() { // HTTP GET request used to fetch current light state
+  server.on("/state", HTTP_GET, []() {
     uint8_t light = server.arg("light").toInt() - 1;
     DynamicJsonDocument root(1024);
     root["on"] = lights[light].lightState;
@@ -802,7 +788,7 @@ void setup() {
     server.send(200, "text/plain", output);
   });
 
-  server.on("/detect", []() { // HTTP GET request used to discover the light type
+  server.on("/detect", []() {
     char macString[32] = {0};
     sprintf(macString, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     DynamicJsonDocument root(1024);
@@ -818,7 +804,7 @@ void setup() {
     server.send(200, "text/plain", output);
   });
 
-  server.on("/config", []() { // used by light web interface to get current configuration 
+  server.on("/config", []() {
     DynamicJsonDocument root(1024);
     root["name"] = lightName;
     root["scene"] = scene;
@@ -845,7 +831,7 @@ void setup() {
     server.send(200, "text/plain", output);
   });
 
-  server.on("/", []() { // light http web interface
+  server.on("/", []() {
     if (server.arg("section").toInt() == 1) {
       server.arg("name").toCharArray(lightName, LIGHT_NAME_MAX_LENGTH);
       startup = server.arg("startup").toInt();
@@ -874,9 +860,9 @@ void setup() {
       }
       saveConfig();
     }
-	
-	String htmlContent = "<!DOCTYPE html> <html> <head> <meta charset=\"UTF-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> <title>" + String(lightName) + " - DiyHue</title> <link rel=\"icon\" type=\"image/png\" href=\"https://diyhue.org/wp-content/uploads/2019/11/cropped-Zeichenfl%C3%A4che-4-1-32x32.png\" sizes=\"32x32\"> <link href=\"https://fonts.googleapis.com/icon?family=Material+Icons\" rel=\"stylesheet\"> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css\"> <link rel=\"stylesheet\" href=\"https://diyhue.org/cdn/nouislider.css\" /> </head> <body> <div class=\"wrapper\"> <nav class=\"nav-extended row\" style=\"background-color: #26a69a !important;\"> <div class=\"nav-wrapper col s12\"> <a href=\"#\" class=\"brand-logo\">DiyHue</a> <ul id=\"nav-mobile\" class=\"right hide-on-med-and-down\" style=\"position: relative;z-index: 10;\"> <li><a target=\"_blank\" href=\"https://github.com/diyhue\"><i class=\"material-icons left\">language</i>GitHub</a></li> <li><a target=\"_blank\" href=\"https://diyhue.readthedocs.io/en/latest/\"><i class=\"material-icons left\">description</i>Documentation</a></li> <li><a target=\"_blank\" href=\"https://diyhue.slack.com/\"><i class=\"material-icons left\">question_answer</i>Slack channel</a></li> </ul> </div> <div class=\"nav-content\"> <ul class=\"tabs tabs-transparent\"> <li class=\"tab\" title=\"#home\"><a class=\"active\" href=\"#home\">Home</a></li> <li class=\"tab\" title=\"#preferences\"><a href=\"#preferences\">Preferences</a></li> <li class=\"tab\" title=\"#network\"><a href=\"#network\">Network settings</a></li> <li class=\"tab\" title=\"/update\"><a href=\"/update\">Updater</a></li> </ul> </div> </nav> <ul class=\"sidenav\" id=\"mobile-demo\"> <li><a target=\"_blank\" href=\"https://github.com/diyhue\">GitHub</a></li> <li><a target=\"_blank\" href=\"https://diyhue.readthedocs.io/en/latest/\">Documentation</a></li> <li><a target=\"_blank\" href=\"https://diyhue.slack.com/\">Slack channel</a></li> </ul> <div class=\"container\"> <div class=\"section\"> <div id=\"home\" class=\"col s12\"> <form> <input type=\"hidden\" name=\"section\" value=\"1\"> <div class=\"row\"> <div class=\"col s10\"> <label for=\"power\">Power</label> <div id=\"power\" class=\"switch section\"> <label> Off <input type=\"checkbox\" name=\"pow\" id=\"pow\" value=\"1\"> <span class=\"lever\"></span> On </label> </div> </div> </div> <div class=\"row\"> <div class=\"col s12 m10\"> <label for=\"bri\">Brightness</label> <input type=\"text\" id=\"bri\" class=\"js-range-slider\" name=\"bri\" value=\"\" /> </div> </div> <div class=\"row\"> <div class=\"col s12\"> <label for=\"hue\">Color</label> <div> <canvas id=\"hue\" width=\"320px\" height=\"320px\" style=\"border:1px solid #d3d3d3;\"></canvas> </div> </div> </div> <div class=\"row\"> <div class=\"col s12\"> <label for=\"ct\">Color Temp</label> <div> <canvas id=\"ct\" width=\"320px\" height=\"50px\" style=\"border:1px solid #d3d3d3;\"></canvas> </div> </div> </div> </form> </div> <div id=\"preferences\" class=\"col s12\"> <form method=\"POST\" action=\"/\"> <input type=\"hidden\" name=\"section\" value=\"1\"> <div class=\"row\"> <div class=\"col s12\"> <label for=\"name\">Light Name</label> <input type=\"text\" id=\"name\" name=\"name\"> </div> </div> <div class=\"row\"> <div class=\"col s12 m6\"> <label for=\"startup\">Default Power:</label> <select name=\"startup\" id=\"startup\"> <option value=\"0\">Last State</option> <option value=\"1\">On</option> <option value=\"2\">Off</option> </select> </div> </div> <div class=\"row\"> <div class=\"col s12 m6\"> <label for=\"scene\">Default Scene:</label> <select name=\"scene\" id=\"scene\"> <option value=\"0\">Relax</option> <option value=\"1\">Read</option> <option value=\"2\">Concentrate</option> <option value=\"3\">Energize</option> <option value=\"4\">Bright</option> <option value=\"5\">Dimmed</option> <option value=\"6\">Nightlight</option> <option value=\"7\">Savanna sunset</option> <option value=\"8\">Tropical twilight</option> <option value=\"9\">Arctic aurora</option> <option value=\"10\">Spring blossom</option> </select> </div> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"pixelcount\" class=\"col-form-label\">Pixel count</label> <input type=\"number\" id=\"pixelcount\" name=\"pixelcount\"> </div> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"lightscount\" class=\"col-form-label\">Lights count</label> <input type=\"number\" id=\"lightscount\" name=\"lightscount\"> </div> </div> <label class=\"form-label\">Light division</label> </br> <label>Available Pixels:</label> <label class=\"availablepixels\"><b>null</b></label> <div class=\"row dividedLights\"> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"transitionleds\">Transition leds:</label> <select name=\"transitionleds\" id=\"transitionleds\"> <option value=\"0\">0</option> <option value=\"2\">2</option> <option value=\"4\">4</option> <option value=\"6\">6</option> <option value=\"8\">8</option> <option value=\"10\">10</option> </select> </div> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"rpct\" class=\"form-label\">Red multiplier</label> <input type=\"number\" id=\"rpct\" class=\"js-range-slider\" data-skin=\"round\" name=\"rpct\" value=\"\" /> </div> <div class=\"col s4 m3\"> <label for=\"gpct\" class=\"form-label\">Green multiplier</label> <input type=\"number\" id=\"gpct\" class=\"js-range-slider\" data-skin=\"round\" name=\"gpct\" value=\"\" /> </div> <div class=\"col s4 m3\"> <label for=\"bpct\" class=\"form-label\">Blue multiplier</label> <input type=\"number\" id=\"bpct\" class=\"js-range-slider\" data-skin=\"round\" name=\"bpct\" value=\"\" /> </div> </div> <div class=\"row\"> <label class=\"control-label col s10\">HW buttons:</label> <div class=\"col s10\"> <div class=\"switch section\"> <label> Disable <input type=\"checkbox\" name=\"hwswitch\" id=\"hwswitch\" value=\"1\"> <span class=\"lever\"></span> Enable </label> </div> </div> </div> <div class=\"switchable\"> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"on\">On Pin</label> <input type=\"number\" id=\"on\" name=\"on\"> </div> <div class=\"col s4 m3\"> <label for=\"off\">Off Pin</label> <input type=\"number\" id=\"off\" name=\"off\"> </div> </div> </div> <div class=\"row\"> <div class=\"col s10\"> <button type=\"submit\" class=\"waves-effect waves-light btn teal\">Save</button> <!--<button type=\"submit\" name=\"reboot\" class=\"waves-effect waves-light btn grey lighten-1\">Reboot</button>--> </div> </div> </form> </div> <div id=\"network\" class=\"col s12\"> <form method=\"POST\" action=\"/\"> <input type=\"hidden\" name=\"section\" value=\"2\"> <div class=\"row\"> <div class=\"col s12\"> <label class=\"control-label\">Manual IP assignment:</label> <div class=\"switch section\"> <label> Disable <input type=\"checkbox\" name=\"disdhcp\" id=\"disdhcp\" value=\"0\"> <span class=\"lever\"></span> Enable </label> </div> </div> </div> <div class=\"switchable\"> <div class=\"row\"> <div class=\"col s12 m3\"> <label for=\"addr\">Ip</label> <input type=\"text\" id=\"addr\" name=\"addr\"> </div> <div class=\"col s12 m3\"> <label for=\"sm\">Submask</label> <input type=\"text\" id=\"sm\" name=\"sm\"> </div> <div class=\"col s12 m3\"> <label for=\"gw\">Gateway</label> <input type=\"text\" id=\"gw\" name=\"gw\"> </div> </div> </div> <div class=\"row\"> <div class=\"col s10\"> <button type=\"submit\" class=\"waves-effect waves-light btn teal\">Save</button> <!--<button type=\"submit\" name=\"reboot\" class=\"waves-effect waves-light btn grey lighten-1\">Reboot</button>--> <!--<button type=\"submit\" name=\"reboot\" class=\"waves-effect waves-light btn grey lighten-1\">Reboot</button>--> </div> </div> </form> </div> </div> </div> </div> <script src=\"https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js\"></script> <script src=\"https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js\"></script> <script src=\"https://diyhue.org/cdn/nouislider.js\"></script> <script src=\"https://diyhue.org/cdn/diyhue.js\"></script> </body> </html>";
-	
+  
+  String htmlContent = "<!DOCTYPE html> <html> <head> <meta charset=\"UTF-8\"> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> <title>" + String(lightName) + " - DiyHue</title> <link rel=\"icon\" type=\"image/png\" href=\"https://diyhue.org/wp-content/uploads/2019/11/cropped-Zeichenfl%C3%A4che-4-1-32x32.png\" sizes=\"32x32\"> <link href=\"https://fonts.googleapis.com/icon?family=Material+Icons\" rel=\"stylesheet\"> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css\"> <link rel=\"stylesheet\" href=\"https://diyhue.org/cdn/nouislider.css\" /> </head> <body> <div class=\"wrapper\"> <nav class=\"nav-extended row\" style=\"background-color: #26a69a !important;\"> <div class=\"nav-wrapper col s12\"> <a href=\"#\" class=\"brand-logo\">DiyHue</a> <ul id=\"nav-mobile\" class=\"right hide-on-med-and-down\" style=\"position: relative;z-index: 10;\"> <li><a target=\"_blank\" href=\"https://github.com/diyhue\"><i class=\"material-icons left\">language</i>GitHub</a></li> <li><a target=\"_blank\" href=\"https://diyhue.readthedocs.io/en/latest/\"><i class=\"material-icons left\">description</i>Documentation</a></li> <li><a target=\"_blank\" href=\"https://diyhue.slack.com/\"><i class=\"material-icons left\">question_answer</i>Slack channel</a></li> </ul> </div> <div class=\"nav-content\"> <ul class=\"tabs tabs-transparent\"> <li class=\"tab\" title=\"#home\"><a class=\"active\" href=\"#home\">Home</a></li> <li class=\"tab\" title=\"#preferences\"><a href=\"#preferences\">Preferences</a></li> <li class=\"tab\" title=\"#network\"><a href=\"#network\">Network settings</a></li> <li class=\"tab\" title=\"/update\"><a href=\"/update\">Updater</a></li> </ul> </div> </nav> <ul class=\"sidenav\" id=\"mobile-demo\"> <li><a target=\"_blank\" href=\"https://github.com/diyhue\">GitHub</a></li> <li><a target=\"_blank\" href=\"https://diyhue.readthedocs.io/en/latest/\">Documentation</a></li> <li><a target=\"_blank\" href=\"https://diyhue.slack.com/\">Slack channel</a></li> </ul> <div class=\"container\"> <div class=\"section\"> <div id=\"home\" class=\"col s12\"> <form> <input type=\"hidden\" name=\"section\" value=\"1\"> <div class=\"row\"> <div class=\"col s10\"> <label for=\"power\">Power</label> <div id=\"power\" class=\"switch section\"> <label> Off <input type=\"checkbox\" name=\"pow\" id=\"pow\" value=\"1\"> <span class=\"lever\"></span> On </label> </div> </div> </div> <div class=\"row\"> <div class=\"col s12 m10\"> <label for=\"bri\">Brightness</label> <input type=\"text\" id=\"bri\" class=\"js-range-slider\" name=\"bri\" value=\"\" /> </div> </div> <div class=\"row\"> <div class=\"col s12\"> <label for=\"hue\">Color</label> <div> <canvas id=\"hue\" width=\"320px\" height=\"320px\" style=\"border:1px solid #d3d3d3;\"></canvas> </div> </div> </div> <div class=\"row\"> <div class=\"col s12\"> <label for=\"ct\">Color Temp</label> <div> <canvas id=\"ct\" width=\"320px\" height=\"50px\" style=\"border:1px solid #d3d3d3;\"></canvas> </div> </div> </div> </form> </div> <div id=\"preferences\" class=\"col s12\"> <form method=\"POST\" action=\"/\"> <input type=\"hidden\" name=\"section\" value=\"1\"> <div class=\"row\"> <div class=\"col s12\"> <label for=\"name\">Light Name</label> <input type=\"text\" id=\"name\" name=\"name\"> </div> </div> <div class=\"row\"> <div class=\"col s12 m6\"> <label for=\"startup\">Default Power:</label> <select name=\"startup\" id=\"startup\"> <option value=\"0\">Last State</option> <option value=\"1\">On</option> <option value=\"2\">Off</option> </select> </div> </div> <div class=\"row\"> <div class=\"col s12 m6\"> <label for=\"scene\">Default Scene:</label> <select name=\"scene\" id=\"scene\"> <option value=\"0\">Relax</option> <option value=\"1\">Read</option> <option value=\"2\">Concentrate</option> <option value=\"3\">Energize</option> <option value=\"4\">Bright</option> <option value=\"5\">Dimmed</option> <option value=\"6\">Nightlight</option> <option value=\"7\">Savanna sunset</option> <option value=\"8\">Tropical twilight</option> <option value=\"9\">Arctic aurora</option> <option value=\"10\">Spring blossom</option> </select> </div> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"pixelcount\" class=\"col-form-label\">Pixel count</label> <input type=\"number\" id=\"pixelcount\" name=\"pixelcount\"> </div> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"lightscount\" class=\"col-form-label\">Lights count</label> <input type=\"number\" id=\"lightscount\" name=\"lightscount\"> </div> </div> <label class=\"form-label\">Light division</label> </br> <label>Available Pixels:</label> <label class=\"availablepixels\"><b>null</b></label> <div class=\"row dividedLights\"> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"transitionleds\">Transition leds:</label> <select name=\"transitionleds\" id=\"transitionleds\"> <option value=\"0\">0</option> <option value=\"2\">2</option> <option value=\"4\">4</option> <option value=\"6\">6</option> <option value=\"8\">8</option> <option value=\"10\">10</option> </select> </div> </div> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"rpct\" class=\"form-label\">Red multiplier</label> <input type=\"number\" id=\"rpct\" class=\"js-range-slider\" data-skin=\"round\" name=\"rpct\" value=\"\" /> </div> <div class=\"col s4 m3\"> <label for=\"gpct\" class=\"form-label\">Green multiplier</label> <input type=\"number\" id=\"gpct\" class=\"js-range-slider\" data-skin=\"round\" name=\"gpct\" value=\"\" /> </div> <div class=\"col s4 m3\"> <label for=\"bpct\" class=\"form-label\">Blue multiplier</label> <input type=\"number\" id=\"bpct\" class=\"js-range-slider\" data-skin=\"round\" name=\"bpct\" value=\"\" /> </div> </div> <div class=\"row\"> <label class=\"control-label col s10\">HW buttons:</label> <div class=\"col s10\"> <div class=\"switch section\"> <label> Disable <input type=\"checkbox\" name=\"hwswitch\" id=\"hwswitch\" value=\"1\"> <span class=\"lever\"></span> Enable </label> </div> </div> </div> <div class=\"switchable\"> <div class=\"row\"> <div class=\"col s4 m3\"> <label for=\"on\">On Pin</label> <input type=\"number\" id=\"on\" name=\"on\"> </div> <div class=\"col s4 m3\"> <label for=\"off\">Off Pin</label> <input type=\"number\" id=\"off\" name=\"off\"> </div> </div> </div> <div class=\"row\"> <div class=\"col s10\"> <button type=\"submit\" class=\"waves-effect waves-light btn teal\">Save</button> <!--<button type=\"submit\" name=\"reboot\" class=\"waves-effect waves-light btn grey lighten-1\">Reboot</button>--> </div> </div> </form> </div> <div id=\"network\" class=\"col s12\"> <form method=\"POST\" action=\"/\"> <input type=\"hidden\" name=\"section\" value=\"2\"> <div class=\"row\"> <div class=\"col s12\"> <label class=\"control-label\">Manual IP assignment:</label> <div class=\"switch section\"> <label> Disable <input type=\"checkbox\" name=\"disdhcp\" id=\"disdhcp\" value=\"0\"> <span class=\"lever\"></span> Enable </label> </div> </div> </div> <div class=\"switchable\"> <div class=\"row\"> <div class=\"col s12 m3\"> <label for=\"addr\">Ip</label> <input type=\"text\" id=\"addr\" name=\"addr\"> </div> <div class=\"col s12 m3\"> <label for=\"sm\">Submask</label> <input type=\"text\" id=\"sm\" name=\"sm\"> </div> <div class=\"col s12 m3\"> <label for=\"gw\">Gateway</label> <input type=\"text\" id=\"gw\" name=\"gw\"> </div> </div> </div> <div class=\"row\"> <div class=\"col s10\"> <button type=\"submit\" class=\"waves-effect waves-light btn teal\">Save</button> <!--<button type=\"submit\" name=\"reboot\" class=\"waves-effect waves-light btn grey lighten-1\">Reboot</button>--> <!--<button type=\"submit\" name=\"reboot\" class=\"waves-effect waves-light btn grey lighten-1\">Reboot</button>--> </div> </div> </form> </div> </div> </div> </div> <script src=\"https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js\"></script> <script src=\"https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js\"></script> <script src=\"https://diyhue.org/cdn/nouislider.js\"></script> <script src=\"https://diyhue.org/cdn/diyhue.js\"></script> </body> </html>";
+  
     server.send(200, "text/html", htmlContent);
     if (server.args()) {
       delay(1000); // needs to wait until response is received by browser. If ESP restarts too soon, browser will think there was an error.
@@ -885,7 +871,7 @@ void setup() {
 
   });
 
-  server.on("/reset", []() { // trigger manual reset
+  server.on("/reset", []() {
     server.send(200, "text/html", "reset");
     delay(1000);
     ESP.restart();
@@ -906,26 +892,26 @@ RgbColor blendingEntert(float left[3], float right[3], float pixel) {
   return RgbColor((uint8_t)result[0], (uint8_t)result[1], (uint8_t)result[2]);
 }
 
-void entertainment() { // entertainment function
-  uint8_t packetSize = Udp.parsePacket(); // check if UDP received some bytes
-  if (packetSize) { // if nr of bytes is more than zero
-    if (!entertainmentRun) { // announce entertainment is running
+void entertainment() {
+  uint8_t packetSize = Udp.parsePacket();
+  if (packetSize) {
+    if (!entertainmentRun) {
       entertainmentRun = true;
     }
-    lastEPMillis = millis(); // update variable with last received package timestamp
+    lastEPMillis = millis();
     Udp.read(packetBuffer, packetSize);
-    for (uint8_t i = 0; i < packetSize / 4; i++) { // loop with every light. There are 4 bytes for every light (light number, red, green, blue)
+    for (uint8_t i = 0; i < packetSize / 4; i++) {     
       lights[packetBuffer[i * 4]].currentColors[0] = packetBuffer[i * 4 + 1] * rgb_multiplier[0] / 100;
       lights[packetBuffer[i * 4]].currentColors[1] = packetBuffer[i * 4 + 2] * rgb_multiplier[1] / 100;
       lights[packetBuffer[i * 4]].currentColors[2] = packetBuffer[i * 4 + 3] * rgb_multiplier[2] / 100;
     }
-    for (uint8_t light = 0; light < lightsCount; light++) { 
+    for (uint8_t light = 0; light < lightsCount; light++) {
       if (lightsCount > 1) {
         if (light == 0) {
           for (int pixel = 0; pixel < dividedLightsArray[0]; pixel++)
           {
             if (pixel < dividedLightsArray[0] - transitionLeds / 2) {
-              strip->SetPixelColor(pixel, convFloat(lights[light].currentColors));
+              strip->SetPixelColor(pixel, convInt(lights[light].currentColors));
             } else {
               strip->SetPixelColor(pixel, blendingEntert(lights[0].currentColors, lights[1].currentColors, pixel + 1 - (dividedLightsArray[0] - transitionLeds / 2 )));
             }
@@ -952,13 +938,13 @@ void entertainment() { // entertainment function
               strip->SetPixelColor(pixel + pixelSum + transitionLeds, blendingEntert( lights[light].currentColors, lights[light + 1].currentColors, pixel + transitionLeds / 2 - dividedLightsArray[light]));
             }
             else  {
-              strip->SetPixelColor(pixel + pixelSum + transitionLeds, convFloat(lights[light].currentColors));
+              strip->SetPixelColor(pixel + pixelSum + transitionLeds, convInt(lights[light].currentColors));
             }
             pixelSum = 0;
           }
         }
       } else {
-        strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
+        strip->ClearTo(convInt(lights[light].currentColors), 0, pixelCount - 1);
       }
     }
     strip->Show();
@@ -968,14 +954,14 @@ void entertainment() { // entertainment function
 void loop() {
   server.handleClient();
   if (!entertainmentRun) {
-    lightEngine(); // process lights data set on http server
+    lightEngine();
   } else {
-    if ((millis() - lastEPMillis) >= ENTERTAINMENT_TIMEOUT) { // entertainment stream stop (timeout)
+    if ((millis() - lastEPMillis) >= ENTERTAINMENT_TIMEOUT) {
       entertainmentRun = false;
       for (uint8_t i = 0; i < lightsCount; i++) {
         processLightdata(i, 4); //return to original colors with 0.4 sec transition
       }
     }
   }
-  entertainment(); // process entertainment data on UDP server
+  entertainment();
 }
