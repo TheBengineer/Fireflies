@@ -624,8 +624,9 @@ void ChangeNeoPixels(uint16_t newCount) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(74880);
   Serial.println();
+  ArduinoOTA.setPassword((const char*)"1234");
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
   });
