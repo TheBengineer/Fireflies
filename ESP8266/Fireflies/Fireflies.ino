@@ -833,7 +833,10 @@ void setup() {
   }
 
   server.on("/fireflies", HTTP_GET, []() {
-    fireflies = server.arg("fireflies").toInt();
+    if (server.hasArg("fireflies")) {
+      fireflies = server.arg("fireflies").toInt();
+    }
+    server.send(200, "text/html", String(fireflies));
   });
 
   server.on("/state", HTTP_PUT, []() {
