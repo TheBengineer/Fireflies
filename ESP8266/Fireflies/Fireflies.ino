@@ -7,6 +7,9 @@
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
+#include <Ticker.h>
+#include <cppQueue.h>
+
 
 IPAddress address(192, 168, 0, 95);  // choose an unique IP Adress
 IPAddress gateway(192, 168, 0, 1);   // Router IP
@@ -19,6 +22,7 @@ IPAddress submask(255, 255, 255, 0);
 struct state {
   uint8_t colors[3], bri = 100, sat = 254, colorMode = 2;
   bool lightState;
+  int fireflyOffset;
   int ct = 200, hue;
   float stepLevel[3], currentColors[3], x, y;
 };
@@ -50,9 +54,10 @@ RgbColor black = RgbColor(0);
 RgbColor firefly = RgbColor(146, 235, 52);
 
 const int maxFireflies = 10;
-uint8_t fireflyPins[10] = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
-uint16_t fireflyOffsets[10] = { 1, 1200, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t numFireflies = 0;
+cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
 bool fireflies = true;
+Ticker firefliesTicker;
 
 
 NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
@@ -60,21 +65,32 @@ NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoBrgFeature, Neo800KbpsMethod>* strip = NULL; // WS2811
 
 void addFirefly() {
-  for (int i = 0; i < maxFireflies; i++) {
-    if (fireflyOffsets[i] == 0) {
-      fireflyOffsets[i] = millis() % 10000;
-      fireflyPins[i] = millis() % pixelCount;
-    }
+  if (numFireflies < maxFireflies) {
+    int newFFNum = random(lightsCount);
+    firefliesQueue.push(&newFFNum);
+    lights[newFFNum].fireflyOffset = random(1, 6000);
+    numFireflies++;
   }
 }
 
 void delFirefly(uint8_t index) {
-  fireflyOffsets[index] = 0;
-  fireflyPins[index] = 0;
+  int delFFnum = 0;
+  firefliesQueue.pop(&delFFnum);
+  lights[newFFNum].fireflyOffset = 0;
+  numFireflies--;
 }
 
 void processFireflies() {
-  if (millis() % 1) {
+  if (fireflies) {
+    int r = random(10);
+    if (r <= 1) {
+      Serial.println("Remove");
+      delFirefly(random(9));
+    }
+    if (r <= 2) {
+      Serial.println("Add");
+      addFirefly();
+    }
   }
 }
 
@@ -355,7 +371,7 @@ RgbColor convFloat(float color[3]) {
 
 float fireflyLevel(unsigned int rawTime) {
   const unsigned int times[] = { 0, 100, 600, 1200, 6000 };
-  const float values[] = { 0.0, 1.0, 0.9, 0, 0 };
+  const float values[] = { 0.0, 0.1, 0.09, 0, 0 };
   const int l = 4;
   unsigned int time = rawTime % times[l];
   if (time <= times[0]) {
@@ -987,6 +1003,8 @@ void setup() {
   server.onNotFound(handleNotFound);
 
   server.begin();
+
+  firefliesTicker.attach(1.0, processFireflies);
 }
 
 
@@ -994,4 +1012,5 @@ void loop() {
   ArduinoOTA.handle();
   server.handleClient();
   lightEngine();
+  run_scheduled_functions();
 }
