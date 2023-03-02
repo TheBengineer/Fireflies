@@ -55,7 +55,7 @@ RgbColor fireflyColor = RgbColor(146, 235, 52);
 
 const int maxFireflies = 10;
 uint8_t numFireflies = 0;
-uint16_t firefliesOffsets[pixelCount] = 0;
+uint16_t firefliesOffsets[100];
 cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
 bool fireflies = true;
 long loop_time = 0;
@@ -68,18 +68,15 @@ NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
 
 void addFirefly() {
   if (numFireflies < maxFireflies) {
-    int newFFNum = random(lightsCount);
+    int newFFNum = random(pixelCount);
     firefliesQueue.push(&newFFNum);
-    lights[newFFNum].fireflyOffset = random(1, 6000);
-    lights[newFFNum].stepLevel[0] = 255;
-    lights[newFFNum].stepLevel[1] = 255;
-    lights[newFFNum].stepLevel[2] = 255;
+    firefliesOffsets[newFFNum] = random(1, 6000);
     Serial.print("ff: ");
     Serial.print(numFireflies);
     Serial.print(" l: ");
     Serial.print(newFFNum);
     Serial.print(" o: ");
-    Serial.println(lights[newFFNum].fireflyOffset);
+    Serial.println(firefliesOffsets[newFFNum]);
     numFireflies++;
   }
 }
@@ -88,14 +85,13 @@ void delFirefly() {
   int delFFnum = -1;
   firefliesQueue.pop(&delFFnum);
   if (delFFnum >= 0) {
-    lights[delFFnum].fireflyOffset = 0;
-    processLightdata(delFFnum, 4);
+    firefliesOffsets[delFFnum] = 0;
     Serial.print("ff: ");
     Serial.print(numFireflies);
     Serial.print(" l: ");
     Serial.print(delFFnum);
     Serial.print(" o: ");
-    Serial.println(lights[delFFnum].fireflyOffset);
+    Serial.println(firefliesOffsets[delFFnum]);
     numFireflies--;
   }
 }
@@ -418,21 +414,6 @@ float fireflyLevel(unsigned int rawTime) {
 
 void lightEngine() {
   for (int light = 0; light < lightsCount; light++) {
-    if (lights[light].fireflyOffset > 0) {
-      float ffBrightness = fireflyLevel(loop_time + lights[light].fireflyOffset);
-      lights[light].lightState = true;
-      Serial.print("l:");
-      Serial.print(light);
-      Serial.print(" o:");
-      Serial.print(lights[light].fireflyOffset);
-      Serial.print(" b:");
-      Serial.println(ffBrightness);
-
-      lights[light].colors[0] = fireflyColor.R * ffBrightness;
-      lights[light].colors[1] = fireflyColor.G * ffBrightness;
-      lights[light].colors[2] = fireflyColor.B * ffBrightness;
-    }
-
     if (lights[light].lightState) {
       if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2]) {
         inTransition = true;
@@ -473,6 +454,22 @@ void lightEngine() {
           }
         } else {
           strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
+        }
+        for (int pixel = 0; pixel < pixelCount; pixel++) {
+          if (fireflyOffset[pixel] > 0) {
+            float ffBrightness = fireflyLevel(loop_time + fireflyOffset[pixel]);
+            lights[light].lightState = true;
+            Serial.print("l:");
+            Serial.print(light);
+            Serial.print(" o:");
+            Serial.print(fireflyOffset[pixel]);
+            Serial.print(" b:");
+            Serial.println(ffBrightness);
+
+            RgbColor animationLevel = RgbColor(fireflyColor.R*ffBrightness,fireflyColor.G*ffBrightness,fireflyColor.B*ffBrightness);
+
+            strip->SetPixelColor(pixel, animationLevel);
+          }
         }
         strip->Show();
       }
