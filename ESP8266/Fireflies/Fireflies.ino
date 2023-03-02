@@ -51,12 +51,13 @@ RgbColor red = RgbColor(255, 0, 0);
 RgbColor green = RgbColor(0, 255, 0);
 RgbColor white = RgbColor(255);
 RgbColor black = RgbColor(0);
-RgbColor firefly = RgbColor(146, 235, 52);
+RgbColor fireflyColor = RgbColor(146, 235, 52);
 
 const int maxFireflies = 10;
 uint8_t numFireflies = 0;
 cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
 bool fireflies = true;
+long loop_time = 0;
 Ticker firefliesTicker;
 
 
@@ -69,6 +70,7 @@ void addFirefly() {
     int newFFNum = random(lightsCount);
     firefliesQueue.push(&newFFNum);
     lights[newFFNum].fireflyOffset = random(1, 6000);
+  lights[newFFNum].stepLevel = { 255, 255, 255 };
     numFireflies++;
   }
 }
@@ -76,7 +78,8 @@ void addFirefly() {
 void delFirefly(uint8_t index) {
   int delFFnum = 0;
   firefliesQueue.pop(&delFFnum);
-  lights[newFFNum].fireflyOffset = 0;
+  lights[delFFnum].fireflyOffset = 0;
+  processLightdata(delFFnum, 4);
   numFireflies--;
 }
 
@@ -398,6 +401,14 @@ float fireflyLevel(unsigned int rawTime) {
 
 void lightEngine() {
   for (int light = 0; light < lightsCount; light++) {
+    if (lights[light].fireflyOffset) {
+      lights[light].lightState = true;
+      float ffBrightness = fireflyLevel(loop_time + lights[light].fireflyOffset);
+      lights[light].colors[0] = fireflyColor.R * ffBrightness;
+      lights[light].colors[1] = fireflyColor.G * ffBrightness;
+      lights[light].colors[2] = fireflyColor.B * ffBrightness;
+    }
+
     if (lights[light].lightState) {
       if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2]) {
         inTransition = true;
@@ -1009,6 +1020,7 @@ void setup() {
 
 
 void loop() {
+  loop_time = millis();
   ArduinoOTA.handle();
   server.handleClient();
   lightEngine();
