@@ -38,10 +38,10 @@ uint8_t scene, startup, onPin = 4, offPin = 5;
 bool hwSwitch = false;
 uint8_t rgb_multiplier[] = { 100, 100, 100 };  // light multiplier in percentage /R, G, B/
 
-uint8_t lightsCount = 1;
+uint8_t lightsCount = 100;
 uint16_t dividedLightsArray[100];
 
-uint16_t pixelCount = 100, lightLedsCount;
+uint16_t pixelCount = 1, lightLedsCount;
 uint8_t transitionLeds = 1;  // pixelCount must be divisible by this value
 
 ESP8266WebServer server(80);
