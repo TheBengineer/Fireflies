@@ -1,7 +1,6 @@
 #include <FS.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
 #include <NeoPixelBus.h>
@@ -42,7 +41,6 @@ uint16_t pixelCount = 100, lightLedsCount;
 uint8_t transitionLeds = 1;  // pixelCount must be divisible by this value
 
 ESP8266WebServer server(80);
-WiFiUDP Udp;
 ESP8266HTTPUpdateServer httpUpdateServer;
 
 RgbColor red = RgbColor(255, 0, 0);
@@ -55,6 +53,9 @@ const int maxFireflies = 10;
 uint8_t fireflyPins[10] = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
 uint16_t fireflyOffsets[10] = { 1, 1200, 0, 0, 0, 0, 0, 0, 0, 0 };
 bool fireflies = true;
+
+float avg_loop = 0.0;
+int last_loop = 0;
 
 
 NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
@@ -77,7 +78,7 @@ void delFirefly(uint8_t index) {
 
 void processFireflies() {
   if (millis() %1){
-    
+
   }
 }
 
@@ -517,15 +518,15 @@ void lightEngine() {
     }
   }
 
-  long m = millis();
-  float brightness = fireflyLevel(m) * .1;
-  float brightness2 = fireflyLevel(m + 1200) * .1;
+  // long m = millis();
+  // float brightness = fireflyLevel(m) * .1;
+  // float brightness2 = fireflyLevel(m + 1200) * .1;
 
-  strip->SetPixelColor(1, convFloat(146.0 * brightness, 235.0 * brightness, 52.0 * brightness));
-  strip->SetPixelColor(0, convFloat(146.0 * brightness2, 235.0 * brightness2, 52.0 * brightness2));
+  // strip->SetPixelColor(1, convFloat(146.0 * brightness, 235.0 * brightness, 52.0 * brightness));
+  // strip->SetPixelColor(0, convFloat(146.0 * brightness2, 235.0 * brightness2, 52.0 * brightness2));
 
 
-  strip->Show();
+  // strip->Show();
 }
 
 void saveState() {
@@ -714,8 +715,8 @@ void setup() {
   ArduinoOTA.begin();
   Serial.println("OTA Ready");
 
-
   delay(1000);
+
 
   //Serial.println("mounting FS...");
 
@@ -792,8 +793,6 @@ void setup() {
   WiFi.macAddress(mac);
 
   httpUpdateServer.setup(&server);
-
-  Udp.begin(2100);
 
   if (hwSwitch == true) {
     pinMode(onPin, INPUT);
@@ -1007,62 +1006,7 @@ RgbColor blendingEntert(float left[3], float right[3], float pixel) {
   return RgbColor((uint8_t)result[0], (uint8_t)result[1], (uint8_t)result[2]);
 }
 
-void entertainment() {
-  uint8_t packetSize = Udp.parsePacket();
-  if (packetSize) {
-    if (!entertainmentRun) {
-      entertainmentRun = true;
-    }
-    lastEPMillis = millis();
-    Udp.read(packetBuffer, packetSize);
-    for (uint8_t i = 0; i < packetSize / 4; i++) {
-      lights[packetBuffer[i * 4]].currentColors[0] = packetBuffer[i * 4 + 1] * rgb_multiplier[0] / 100;
-      lights[packetBuffer[i * 4]].currentColors[1] = packetBuffer[i * 4 + 2] * rgb_multiplier[1] / 100;
-      lights[packetBuffer[i * 4]].currentColors[2] = packetBuffer[i * 4 + 3] * rgb_multiplier[2] / 100;
-    }
-    for (uint8_t light = 0; light < lightsCount; light++) {
-      if (lightsCount > 1) {
-        if (light == 0) {
-          for (int pixel = 0; pixel < dividedLightsArray[0]; pixel++) {
-            if (pixel < dividedLightsArray[0] - transitionLeds / 2) {
-              strip->SetPixelColor(pixel, convInt(lights[light].currentColors));
-            } else {
-              strip->SetPixelColor(pixel, blendingEntert(lights[0].currentColors, lights[1].currentColors, pixel + 1 - (dividedLightsArray[0] - transitionLeds / 2)));
-            }
-          }
-        } else {
-          for (int pixel = 0; pixel < dividedLightsArray[light]; pixel++) {
-            long pixelSum;
-            for (int value = 0; value < light; value++) {
-              if (value + 1 == light) {
-                pixelSum += dividedLightsArray[value] - transitionLeds;
-              } else {
-                pixelSum += dividedLightsArray[value];
-              }
-            }
-            if (pixel < transitionLeds / 2) {
-              strip->SetPixelColor(pixel + pixelSum + transitionLeds, blendingEntert(lights[light - 1].currentColors, lights[light].currentColors, pixel + 1));
-            } else if (pixel > dividedLightsArray[light] - transitionLeds / 2 - 1) {
-              //Serial.println(String(pixel));
-              strip->SetPixelColor(pixel + pixelSum + transitionLeds, blendingEntert(lights[light].currentColors, lights[light + 1].currentColors, pixel + transitionLeds / 2 - dividedLightsArray[light]));
-            } else {
-              strip->SetPixelColor(pixel + pixelSum + transitionLeds, convInt(lights[light].currentColors));
-            }
-            pixelSum = 0;
-          }
-        }
-      } else {
-        strip->ClearTo(convInt(lights[light].currentColors), 0, pixelCount - 1);
-      }
-    }
-  }
-}
 
-
-
-
-float avg_loop = 0.0;
-int last_loop = millis();
 
 void loop() {
   ArduinoOTA.handle();
@@ -1070,5 +1014,5 @@ void loop() {
   lightEngine();
   int next_loop = millis();
   avg_loop = (avg_loop * 0.9) + ((next_loop - last_loop) * 0.1);
-  int last_loop = next_loop;
+  last_loop = next_loop;
 }
