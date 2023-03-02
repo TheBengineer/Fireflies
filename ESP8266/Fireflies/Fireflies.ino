@@ -77,8 +77,7 @@ void delFirefly(uint8_t index) {
 }
 
 void processFireflies() {
-  if (millis() %1){
-
+  if (millis() % 1) {
   }
 }
 
@@ -995,17 +994,6 @@ void setup() {
 
   server.begin();
 }
-
-
-RgbColor blendingEntert(float left[3], float right[3], float pixel) {
-  uint8_t result[3];
-  for (uint8_t i = 0; i < 3; i++) {
-    float percent = (float)pixel / (float)(transitionLeds + 1);
-    result[i] = (left[i] * (1.0f - percent) + right[i] * percent) / 2;
-  }
-  return RgbColor((uint8_t)result[0], (uint8_t)result[1], (uint8_t)result[2]);
-}
-
 
 
 void loop() {
