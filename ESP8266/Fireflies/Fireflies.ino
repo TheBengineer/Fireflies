@@ -404,8 +404,15 @@ float fireflyLevel(unsigned int rawTime) {
 void lightEngine() {
   for (int light = 0; light < lightsCount; light++) {
     if (lights[light].fireflyOffset) {
-      lights[light].lightState = true;
       float ffBrightness = fireflyLevel(loop_time + lights[light].fireflyOffset);
+      lights[light].lightState = true;
+      Serial.print("l:");
+      Serial.print(light);
+      Serial.print(" o:");
+      Serial.print(lights[light].fireflyOffset);
+      Serial.print(" b:");
+      Serial.println(ffBrightness);
+      
       lights[light].colors[0] = fireflyColor.R * ffBrightness;
       lights[light].colors[1] = fireflyColor.G * ffBrightness;
       lights[light].colors[2] = fireflyColor.B * ffBrightness;
@@ -905,6 +912,7 @@ void setup() {
 
   server.on("/state", HTTP_GET, []() {
     uint8_t light = server.arg("light").toInt() - 1;
+    bool fireflies = server.arg("fireflies").toInt() - 1;
     DynamicJsonDocument root(1024);
     root["on"] = lights[light].lightState;
     root["bri"] = lights[light].bri;
