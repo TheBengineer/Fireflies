@@ -38,10 +38,10 @@ uint8_t scene, startup, onPin = 4, offPin = 5;
 bool hwSwitch = false;
 uint8_t rgb_multiplier[] = { 100, 100, 100 };  // light multiplier in percentage /R, G, B/
 
-uint8_t lightsCount = 100;
+uint8_t lightsCount = 1;
 uint16_t dividedLightsArray[100];
 
-uint16_t pixelCount = 1, lightLedsCount;
+uint16_t pixelCount = 100, lightLedsCount;
 uint8_t transitionLeds = 1;  // pixelCount must be divisible by this value
 
 ESP8266WebServer server(80);
@@ -55,6 +55,7 @@ RgbColor fireflyColor = RgbColor(146, 235, 52);
 
 const int maxFireflies = 10;
 uint8_t numFireflies = 0;
+uint16_t firefliesOffsets[pixelCount] = 0;
 cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
 bool fireflies = true;
 long loop_time = 0;
