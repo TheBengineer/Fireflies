@@ -49,10 +49,28 @@ RgbColor red = RgbColor(255, 0, 0);
 RgbColor green = RgbColor(0, 255, 0);
 RgbColor white = RgbColor(255);
 RgbColor black = RgbColor(0);
+RgbColor firefly = RgbColor(146, 235, 52);
+
+const int maxFireflies = 10;
+uint16_t fireflies[10] = { 1, 1200, 0, 0, 0, 0, 0, 0, 0, 0 };
+
 
 NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoBrgFeature, Neo800KbpsMethod>* strip = NULL; // WS2811
+
+void addFirefly() {
+  for (int i = 0; i < maxFireflies; i++) {
+    if (fireflies[i] == 0) {
+      fireflies[i] = millis() % 10000;
+    }
+  }
+}
+
+void processFireflies(){
+
+}
+
 
 void convertHue(uint8_t light) {
   double hh, p, q, t, ff, s, v;
@@ -398,7 +416,6 @@ void lightEngine() {
         } else {
           strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
         }
-        strip->Show();
       }
     } else {
       if (lights[light].currentColors[0] != 0 || lights[light].currentColors[1] != 0 || lights[light].currentColors[2] != 0) {
@@ -489,6 +506,16 @@ void lightEngine() {
       }
     }
   }
+
+  long m = millis();
+  float brightness = fireflyLevel(m) * .1;
+  float brightness2 = fireflyLevel(m + 1200) * .1;
+
+  strip->SetPixelColor(1, convFloat(146.0 * brightness, 235.0 * brightness, 52.0 * brightness));
+  strip->SetPixelColor(0, convFloat(146.0 * brightness2, 235.0 * brightness2, 52.0 * brightness2));
+
+
+  strip->Show();
 }
 
 void saveState() {
@@ -1014,7 +1041,6 @@ void entertainment() {
         strip->ClearTo(convInt(lights[light].currentColors), 0, pixelCount - 1);
       }
     }
-    strip->Show();
   }
 }
 
@@ -1026,22 +1052,5 @@ void entertainment() {
 void loop() {
   ArduinoOTA.handle();
   server.handleClient();
-  if (!entertainmentRun) {
-    lightEngine();
-  } else {
-    if ((millis() - lastEPMillis) >= ENTERTAINMENT_TIMEOUT) {
-      entertainmentRun = false;
-      for (uint8_t i = 0; i < lightsCount; i++) {
-        processLightdata(i, 4);  //return to original colors with 0.4 sec transition
-      }
-    }
-  }
-  if (strip != NULL) {
-    float brightness = fireflyLevel(millis()) * .1;
-    float brightness2 = fireflyLevel(millis() + 1200) * .1;
-
-    strip->SetPixelColor(1, convFloat(146.0 * brightness, 235.0 * brightness, 52.0 * brightness));
-    strip->SetPixelColor(0, convFloat(146.0 * brightness2, 235.0 * brightness2, 52.0 * brightness2));
-    strip->Show();
-  }
+  lightEngine();
 }
