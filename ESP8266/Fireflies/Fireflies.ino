@@ -412,7 +412,7 @@ void lightEngine() {
       Serial.print(lights[light].fireflyOffset);
       Serial.print(" b:");
       Serial.println(ffBrightness);
-      
+
       lights[light].colors[0] = fireflyColor.R * ffBrightness;
       lights[light].colors[1] = fireflyColor.G * ffBrightness;
       lights[light].colors[2] = fireflyColor.B * ffBrightness;
@@ -840,6 +840,12 @@ void setup() {
     if (error) {
       server.send(404, "text/plain", "FAIL. " + server.arg("plain"));
     } else {
+      const char* key = state.key().c_str();
+      JsonObject values = state.value();
+      if (values.containsKey("fireflies")) {
+        fireflies = (values["fireflies"] == true)
+      }
+
       for (JsonPair state : root.as<JsonObject>()) {
         const char* key = state.key().c_str();
         int light = atoi(key) - 1;
@@ -912,7 +918,6 @@ void setup() {
 
   server.on("/state", HTTP_GET, []() {
     uint8_t light = server.arg("light").toInt() - 1;
-    bool fireflies = server.arg("fireflies").toInt() - 1;
     DynamicJsonDocument root(1024);
     root["on"] = lights[light].lightState;
     root["bri"] = lights[light].bri;
