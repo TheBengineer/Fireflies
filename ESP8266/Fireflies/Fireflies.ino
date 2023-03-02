@@ -413,9 +413,10 @@ float fireflyLevel(unsigned int rawTime) {
 
 
 void lightEngine() {
+  bool changed = false;
   for (int light = 0; light < lightsCount; light++) {
     if (lights[light].lightState) {
-      if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2]) {
+      if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2] || fireflies) {
         inTransition = true;
         for (uint8_t k = 0; k < 3; k++) {
           if (lights[light].colors[k] != lights[light].currentColors[k]) lights[light].currentColors[k] += lights[light].stepLevel[k];
@@ -455,23 +456,7 @@ void lightEngine() {
         } else {
           strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
         }
-        for (int pixel = 0; pixel < pixelCount; pixel++) {
-          if (fireflyOffset[pixel] > 0) {
-            float ffBrightness = fireflyLevel(loop_time + fireflyOffset[pixel]);
-            lights[light].lightState = true;
-            Serial.print("l:");
-            Serial.print(light);
-            Serial.print(" o:");
-            Serial.print(fireflyOffset[pixel]);
-            Serial.print(" b:");
-            Serial.println(ffBrightness);
-
-            RgbColor animationLevel = RgbColor(fireflyColor.R*ffBrightness,fireflyColor.G*ffBrightness,fireflyColor.B*ffBrightness);
-
-            strip->SetPixelColor(pixel, animationLevel);
-          }
-        }
-        strip->Show();
+        changed = true;
       }
     } else {
       if (lights[light].currentColors[0] != 0 || lights[light].currentColors[1] != 0 || lights[light].currentColors[2] != 0) {
@@ -514,9 +499,10 @@ void lightEngine() {
         } else {
           strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
         }
-        strip->Show();
+        changed = true;
       }
     }
+
   }
   if (inTransition) {
     delay(6);
@@ -563,15 +549,29 @@ void lightEngine() {
     }
   }
 
-  // long m = millis();
-  // float brightness = fireflyLevel(m) * .1;
-  // float brightness2 = fireflyLevel(m + 1200) * .1;
+  if (fireflies){
+    for (int pixel = 0; pixel < pixelCount; pixel++) {
+        if (firefliesOffsets[pixel] > 0) {
+          float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
+          lights[light].lightState = true;
+          Serial.print("l:");
+          Serial.print(light);
+          Serial.print(" o:");
+          Serial.print(firefliesOffsets[pixel]);
+          Serial.print(" b:");
+          Serial.println(ffBrightness);
 
-  // strip->SetPixelColor(1, convFloat(146.0 * brightness, 235.0 * brightness, 52.0 * brightness));
-  // strip->SetPixelColor(0, convFloat(146.0 * brightness2, 235.0 * brightness2, 52.0 * brightness2));
+          RgbColor animationLevel = RgbColor(fireflyColor.R * ffBrightness, fireflyColor.G * ffBrightness, fireflyColor.B * ffBrightness);
 
+          strip->SetPixelColor(pixel, animationLevel);
+          changed = true;
+        }
+      }
+  }
 
-  // strip->Show();
+  if (changed){
+    strip->Show();
+  }
 }
 
 void saveState() {
