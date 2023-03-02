@@ -553,7 +553,6 @@ void lightEngine() {
     for (int pixel = 0; pixel < pixelCount; pixel++) {
         if (firefliesOffsets[pixel] > 0) {
           float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
-          lights[light].lightState = true;
           Serial.print("l:");
           Serial.print(light);
           Serial.print(" o:");
