@@ -1001,6 +1001,6 @@ void loop() {
   server.handleClient();
   lightEngine();
   int next_loop = millis();
-  avg_loop = (avg_loop * 0.9) + ((next_loop - last_loop) * 0.1);
+  avg_loop = (avg_loop * 0.99) + ((next_loop - last_loop) * 0.01);
   last_loop = next_loop;
 }
