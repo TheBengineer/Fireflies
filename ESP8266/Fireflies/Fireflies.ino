@@ -54,9 +54,6 @@ uint8_t fireflyPins[10] = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
 uint16_t fireflyOffsets[10] = { 1, 1200, 0, 0, 0, 0, 0, 0, 0, 0 };
 bool fireflies = true;
 
-float avg_loop = 0.0;
-int last_loop = 0;
-
 
 NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>* strip = NULL;
@@ -987,10 +984,6 @@ void setup() {
     ESP.restart();
   });
 
-  server.on("/loop", []() {
-    server.send(200, "text/html", String(avg_loop));
-  });
-
   server.onNotFound(handleNotFound);
 
   server.begin();
@@ -1001,7 +994,4 @@ void loop() {
   ArduinoOTA.handle();
   server.handleClient();
   lightEngine();
-  int next_loop = millis();
-  avg_loop = (avg_loop * 0.99) + ((next_loop - last_loop) * 0.01);
-  last_loop = next_loop;
 }
