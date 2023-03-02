@@ -320,15 +320,19 @@ RgbColor convInt(float color[3]) {
   return RgbColor((uint8_t)color[0], (uint8_t)color[1], (uint8_t)color[2]);
 }
 
+RgbColor convFloat(double c1, double c2, double c3) {
+  return RgbColor((uint8_t)c1, (uint8_t)c2, (uint8_t)c3);
+}
+
 RgbColor convFloat(float color[3]) {
   return RgbColor((uint8_t)color[0], (uint8_t)color[1], (uint8_t)color[2]);
 }
 
-float fireflyLevel(int rawTime) {
-  const int times[] = {0, 100, 600, 1200, 6000};
-  const float values[] = {0.0, 1.0, 0.9, 0, 0};
+float fireflyLevel(unsigned int rawTime) {
+  const unsigned int times[] = { 0, 100, 600, 1200, 6000 };
+  const float values[] = { 0.0, 1.0, 0.9, 0, 0 };
   const int l = 4;
-  int time = rawTime % times[l];
+  unsigned int time = rawTime % times[l];
   if (time <= times[0]) {
     return values[0];
   }
@@ -1032,5 +1036,12 @@ void loop() {
       }
     }
   }
-  entertainment();
+  if (strip != NULL) {
+    float brightness = fireflyLevel(millis()) * .1;
+    float brightness2 = fireflyLevel(millis() + 1200) * .1;
+
+    strip->SetPixelColor(1, convFloat(146.0 * brightness, 235.0 * brightness, 52.0 * brightness));
+    strip->SetPixelColor(0, convFloat(146.0 * brightness2, 235.0 * brightness2, 52.0 * brightness2));
+    strip->Show();
+  }
 }
