@@ -70,7 +70,9 @@ void addFirefly() {
     int newFFNum = random(lightsCount);
     firefliesQueue.push(&newFFNum);
     lights[newFFNum].fireflyOffset = random(1, 6000);
-  lights[newFFNum].stepLevel = { 255, 255, 255 };
+    lights[newFFNum].stepLevel[0] = 255;
+    lights[newFFNum].stepLevel[1] = 255;
+    lights[newFFNum].stepLevel[2] = 255;
     numFireflies++;
   }
 }
