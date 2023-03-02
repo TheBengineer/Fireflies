@@ -426,6 +426,7 @@ void lightEngine() {
         } else {
           strip->ClearTo(convFloat(lights[light].currentColors), 0, pixelCount - 1);
         }
+        strip->Show();
       }
     } else {
       if (lights[light].currentColors[0] != 0 || lights[light].currentColors[1] != 0 || lights[light].currentColors[2] != 0) {
