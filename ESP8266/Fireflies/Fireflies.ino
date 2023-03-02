@@ -73,16 +73,30 @@ void addFirefly() {
     lights[newFFNum].stepLevel[0] = 255;
     lights[newFFNum].stepLevel[1] = 255;
     lights[newFFNum].stepLevel[2] = 255;
+    Serial.print("ff: ");
+    Serial.print(numFireflies);
+    Serial.print(" l: ");
+    Serial.print(newFFNum);
+    Serial.print(" o: ");
+    Serial.println(lights[newFFNum].fireflyOffset);
     numFireflies++;
   }
 }
 
-void delFirefly(uint8_t index) {
-  int delFFnum = 0;
+void delFirefly() {
+  int delFFnum = -1;
   firefliesQueue.pop(&delFFnum);
-  lights[delFFnum].fireflyOffset = 0;
-  processLightdata(delFFnum, 4);
-  numFireflies--;
+  if (delFFnum >= 0) {
+    lights[delFFnum].fireflyOffset = 0;
+    processLightdata(delFFnum, 4);
+    Serial.print("ff: ");
+    Serial.print(numFireflies);
+    Serial.print(" l: ");
+    Serial.print(delFFnum);
+    Serial.print(" o: ");
+    Serial.println(lights[delFFnum].fireflyOffset);
+    numFireflies--;
+  }
 }
 
 void processFireflies() {
@@ -90,7 +104,7 @@ void processFireflies() {
     int r = random(10);
     if (r <= 1) {
       Serial.println("Remove");
-      delFirefly(random(9));
+      delFirefly();
     }
     if (r <= 2) {
       Serial.println("Add");
@@ -403,7 +417,7 @@ float fireflyLevel(unsigned int rawTime) {
 
 void lightEngine() {
   for (int light = 0; light < lightsCount; light++) {
-    if (lights[light].fireflyOffset) {
+    if (lights[light].fireflyOffset > 0) {
       float ffBrightness = fireflyLevel(loop_time + lights[light].fireflyOffset);
       lights[light].lightState = true;
       Serial.print("l:");
