@@ -971,6 +971,7 @@ void setup() {
     root["addr"] = (String)address[0] + "." + (String)address[1] + "." + (String)address[2] + "." + (String)address[3];
     root["gw"] = (String)gateway[0] + "." + (String)gateway[1] + "." + (String)gateway[2] + "." + (String)gateway[3];
     root["sm"] = (String)submask[0] + "." + (String)submask[1] + "." + (String)submask[2] + "." + (String)submask[3];
+    root["fireflies"] = fireflies;
     String output;
     serializeJson(root, output);
     server.send(200, "text/plain", output);
