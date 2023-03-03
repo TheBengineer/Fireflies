@@ -71,12 +71,6 @@ void addFirefly() {
     int newFFNum = random(pixelCount);
     firefliesQueue.push(&newFFNum);
     firefliesOffsets[newFFNum] = random(1, 6000);
-    Serial.print("ff: ");
-    Serial.print(numFireflies);
-    Serial.print(" l: ");
-    Serial.print(newFFNum);
-    Serial.print(" o: ");
-    Serial.println(firefliesOffsets[newFFNum]);
     numFireflies++;
   }
 }
@@ -86,12 +80,7 @@ void delFirefly() {
   firefliesQueue.pop(&delFFnum);
   if (delFFnum >= 0) {
     firefliesOffsets[delFFnum] = 0;
-    Serial.print("ff: ");
-    Serial.print(numFireflies);
-    Serial.print(" l: ");
-    Serial.print(delFFnum);
-    Serial.print(" o: ");
-    Serial.println(firefliesOffsets[delFFnum]);
+    strip->SetPixelColor(delFFnum, lights[0].colors);
     numFireflies--;
   }
 }
@@ -553,13 +542,6 @@ void lightEngine() {
     for (int pixel = 0; pixel < pixelCount; pixel++) {
         if (firefliesOffsets[pixel] > 0) {
           float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
-          Serial.print("p:");
-          Serial.print(pixel);
-          Serial.print(" o:");
-          Serial.print(firefliesOffsets[pixel]);
-          Serial.print(" b:");
-          Serial.println(ffBrightness);
-
           RgbColor animationLevel = RgbColor(fireflyColor.R * ffBrightness, fireflyColor.G * ffBrightness, fireflyColor.B * ffBrightness);
 
           strip->SetPixelColor(pixel, animationLevel);
