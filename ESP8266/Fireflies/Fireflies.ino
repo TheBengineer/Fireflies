@@ -379,12 +379,14 @@ void addFirefly() {
 }
 
 void delFirefly() {
-  int delFFnum = -1;
-  firefliesQueue.pop(&delFFnum);
-  if (delFFnum >= 0) {
-    firefliesOffsets[delFFnum] = 0;
-    strip->SetPixelColor(delFFnum, convFloat(lights[0].currentColors));
-    numFireflies--;
+  if (numFireflies) {
+    int delFFnum = -1;
+    firefliesQueue.pop(&delFFnum);
+    if (delFFnum >= 0) {
+      firefliesOffsets[delFFnum] = 0;
+      strip->SetPixelColor(delFFnum, convFloat(lights[0].currentColors));
+      numFireflies--;
+    }
   }
 }
 
@@ -490,7 +492,6 @@ void lightEngine() {
         changed = true;
       }
     }
-
   }
   if (inTransition) {
     delay(6);
@@ -537,19 +538,19 @@ void lightEngine() {
     }
   }
 
-  if (fireflies){
+  if (fireflies) {
     for (int pixel = 0; pixel < pixelCount; pixel++) {
-        if (firefliesOffsets[pixel] > 0) {
-          float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
-          RgbColor animationLevel = RgbColor(fireflyColor.R * ffBrightness, fireflyColor.G * ffBrightness, fireflyColor.B * ffBrightness);
+      if (firefliesOffsets[pixel] > 0) {
+        float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
+        RgbColor animationLevel = RgbColor(fireflyColor.R * ffBrightness, fireflyColor.G * ffBrightness, fireflyColor.B * ffBrightness);
 
-          strip->SetPixelColor(pixel, animationLevel);
-          changed = true;
-        }
+        strip->SetPixelColor(pixel, animationLevel);
+        changed = true;
       }
+    }
   }
 
-  if (changed){
+  if (changed) {
     strip->Show();
   }
 }
