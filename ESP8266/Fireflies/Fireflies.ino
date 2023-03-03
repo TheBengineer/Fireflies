@@ -89,11 +89,9 @@ void processFireflies() {
   if (fireflies) {
     int r = random(10);
     if (r <= 1) {
-      Serial.println("Remove");
       delFirefly();
     }
     if (r <= 2) {
-      Serial.println("Add");
       addFirefly();
     }
   }
