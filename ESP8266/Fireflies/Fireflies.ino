@@ -829,6 +829,11 @@ void setup() {
     if (server.hasArg("fireflies")) {
       fireflies = server.arg("fireflies").toInt();
     }
+    if (!fireflies){
+      while (numFireflies){
+        delFirefly();
+      }
+    }
     server.send(200, "text/html", String(fireflies));
   });
 
