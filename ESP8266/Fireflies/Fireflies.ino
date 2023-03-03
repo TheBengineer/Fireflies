@@ -371,7 +371,7 @@ float fireflyLevel(unsigned int rawTime) {
 
 void addFirefly() {
   if (numFireflies < maxFireflies) {
-    int newFFNum = random(pixelCount);
+    uint8_t newFFNum = random(pixelCount);
     firefliesQueue.push(&newFFNum);
     firefliesOffsets[newFFNum] = random(1, 6000);
     numFireflies++;
@@ -380,13 +380,13 @@ void addFirefly() {
 
 void delFirefly() {
   if (numFireflies) {
-    int delFFnum = -1;
+    uint8_t delFFnum = 0;
     firefliesQueue.pop(&delFFnum);
     if (delFFnum >= 0) {
       firefliesOffsets[delFFnum] = 0;
       strip->SetPixelColor(delFFnum, convFloat(lights[0].currentColors));
-      numFireflies--;
     }
+    numFireflies--;
   }
 }
 
@@ -834,7 +834,7 @@ void setup() {
         delFirefly();
       }
     }
-    strip->show();
+    strip->Show();
     server.send(200, "text/html", String(fireflies));
   });
 
