@@ -34,8 +34,10 @@ unsigned long lastEPMillis;
 
 //settings
 char lightName[LIGHT_NAME_MAX_LENGTH] = "Hue WS2812 strip";
-uint8_t scene, startup, onPin = 4, offPin = 5;
-bool hwSwitch = false;
+uint8_t scene, startup;
+uint8_t onPin = 2; // D4 = pin 2
+uint8_t offPin = 14; // D5 = pin 14
+bool hwSwitch = true;
 uint8_t rgb_multiplier[] = { 100, 100, 100 };  // light multiplier in percentage /R, G, B/
 
 uint8_t lightsCount = 1;
@@ -497,9 +499,14 @@ void lightEngine() {
     delay(6);
     inTransition = false;
   } else if (hwSwitch == true) {
-    if (digitalRead(onPin) == HIGH) {
+    Serial.print("Reading HW On:");
+    Serial.print(digitalRead(onPin));
+    Serial.print(" Off:");
+    Serial.println(digitalRead(offPin));
+
+    if (digitalRead(onPin) == LOW) {
       int i = 0;
-      while (digitalRead(onPin) == HIGH && i < 30) {
+      while (digitalRead(onPin) == LOW && i < 30) {
         delay(20);
         i++;
       }
@@ -516,9 +523,9 @@ void lightEngine() {
           }
         }
       }
-    } else if (digitalRead(offPin) == HIGH) {
+    } else if (digitalRead(offPin) == LOW) {
       int i = 0;
-      while (digitalRead(offPin) == HIGH && i < 30) {
+      while (digitalRead(offPin) == LOW && i < 30) {
         delay(20);
         i++;
       }
@@ -820,10 +827,10 @@ void setup() {
 
   httpUpdateServer.setup(&server);
 
-  if (hwSwitch == true) {
-    pinMode(onPin, INPUT);
-    pinMode(offPin, INPUT);
-  }
+
+  pinMode(onPin, INPUT);
+  pinMode(offPin, INPUT);
+  
 
   server.on("/fireflies", HTTP_GET, []() {
     if (server.hasArg("fireflies")) {
