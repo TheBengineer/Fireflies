@@ -57,7 +57,7 @@ const int maxFireflies = 10;
 uint8_t numFireflies = 0;
 uint16_t firefliesOffsets[100];
 cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
-bool fireflies = true;
+bool fireflies = false;
 long loop_time = 0;
 Ticker firefliesTicker;
 
@@ -80,7 +80,7 @@ void delFirefly() {
   firefliesQueue.pop(&delFFnum);
   if (delFFnum >= 0) {
     firefliesOffsets[delFFnum] = 0;
-    strip->SetPixelColor(delFFnum, lights[0].colors);
+    strip->SetPixelColor(delFFnum, convFloat(lights[0].colors));
     numFireflies--;
   }
 }
