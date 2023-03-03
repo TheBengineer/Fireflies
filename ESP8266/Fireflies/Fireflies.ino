@@ -334,7 +334,7 @@ RgbColor convInt(float color[3]) {
   return RgbColor((uint8_t)color[0], (uint8_t)color[1], (uint8_t)color[2]);
 }
 
-RgbColor convFloat(double c1, double c2, double c3) {
+RgbColor convDouble(double c1, double c2, double c3) {
   return RgbColor((uint8_t)c1, (uint8_t)c2, (uint8_t)c3);
 }
 
@@ -383,7 +383,7 @@ void delFirefly() {
   firefliesQueue.pop(&delFFnum);
   if (delFFnum >= 0) {
     firefliesOffsets[delFFnum] = 0;
-    strip->SetPixelColor(delFFnum, convFloat(lights[0].colors));
+    strip->SetPixelColor(delFFnum, convFloat(lights[0].currentColors));
     numFireflies--;
   }
 }
