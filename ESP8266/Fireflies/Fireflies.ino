@@ -834,6 +834,7 @@ void setup() {
         delFirefly();
       }
     }
+    strip->show();
     server.send(200, "text/html", String(fireflies));
   });
 
