@@ -66,36 +66,6 @@ NeoPixelBus<NeoRgbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>* strip = NULL;
 //NeoPixelBus<NeoBrgFeature, Neo800KbpsMethod>* strip = NULL; // WS2811
 
-void addFirefly() {
-  if (numFireflies < maxFireflies) {
-    int newFFNum = random(pixelCount);
-    firefliesQueue.push(&newFFNum);
-    firefliesOffsets[newFFNum] = random(1, 6000);
-    numFireflies++;
-  }
-}
-
-void delFirefly() {
-  int delFFnum = -1;
-  firefliesQueue.pop(&delFFnum);
-  if (delFFnum >= 0) {
-    firefliesOffsets[delFFnum] = 0;
-    strip->SetPixelColor(delFFnum, convFloat(lights[0].colors));
-    numFireflies--;
-  }
-}
-
-void processFireflies() {
-  if (fireflies) {
-    int r = random(10);
-    if (r <= 1) {
-      delFirefly();
-    }
-    if (r <= 2) {
-      addFirefly();
-    }
-  }
-}
 
 
 void convertHue(uint8_t light) {
@@ -398,6 +368,37 @@ float fireflyLevel(unsigned int rawTime) {
   return 0.0;
 }
 
+
+void addFirefly() {
+  if (numFireflies < maxFireflies) {
+    int newFFNum = random(pixelCount);
+    firefliesQueue.push(&newFFNum);
+    firefliesOffsets[newFFNum] = random(1, 6000);
+    numFireflies++;
+  }
+}
+
+void delFirefly() {
+  int delFFnum = -1;
+  firefliesQueue.pop(&delFFnum);
+  if (delFFnum >= 0) {
+    firefliesOffsets[delFFnum] = 0;
+    strip->SetPixelColor(delFFnum, convFloat(lights[0].colors));
+    numFireflies--;
+  }
+}
+
+void processFireflies() {
+  if (fireflies) {
+    int r = random(10);
+    if (r <= 1) {
+      delFirefly();
+    }
+    if (r <= 2) {
+      addFirefly();
+    }
+  }
+}
 
 void lightEngine() {
   bool changed = false;
