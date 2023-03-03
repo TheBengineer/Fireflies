@@ -57,7 +57,7 @@ const int maxFireflies = 10;
 uint8_t numFireflies = 0;
 uint16_t firefliesOffsets[100];
 cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
-bool fireflies = false;
+int fireflies = 0;
 long loop_time = 0;
 Ticker firefliesTicker;
 
@@ -390,7 +390,7 @@ void delFirefly() {
 
 void processFireflies() {
   if (fireflies) {
-    int r = random(10);
+    int r = random(fireflies);
     if (r <= 1) {
       delFirefly();
     }
