@@ -35,8 +35,8 @@ unsigned long lastEPMillis;
 //settings
 char lightName[LIGHT_NAME_MAX_LENGTH] = "Hue WS2812 strip";
 uint8_t scene, startup;
-uint8_t onPin = 2; // D4 = pin 2
-uint8_t offPin = 14; // D5 = pin 14
+uint8_t onPin = 2;    // D4 = pin 2
+uint8_t offPin = 14;  // D5 = pin 14
 bool hwSwitch = true;
 uint8_t rgb_multiplier[] = { 100, 100, 100 };  // light multiplier in percentage /R, G, B/
 
@@ -241,62 +241,62 @@ void infoLight(RgbColor color) {
 
 void apply_scene(uint8_t new_scene) {
   for (uint8_t light = 0; light < lightsCount; light++) {
-    if (new_scene == 1) {
+    if (new_scene == 1) {  // Relax
       lights[light].bri = 254;
       lights[light].ct = 346;
       lights[light].colorMode = 2;
       convertCt(light);
-    } else if (new_scene == 2) {
+    } else if (new_scene == 2) {  // Read
       lights[light].bri = 254;
       lights[light].ct = 233;
       lights[light].colorMode = 2;
       convertCt(light);
-    } else if (new_scene == 3) {
+    } else if (new_scene == 3) {  //Concentrate
       lights[light].bri = 254;
       lights[light].ct = 156;
       lights[light].colorMode = 2;
       convertCt(light);
-    } else if (new_scene == 4) {
+    } else if (new_scene == 4) {  // Energize
       lights[light].bri = 77;
       lights[light].ct = 367;
       lights[light].colorMode = 2;
       convertCt(light);
-    } else if (new_scene == 5) {
+    } else if (new_scene == 5) {  //Bright
       lights[light].bri = 254;
       lights[light].ct = 447;
       lights[light].colorMode = 2;
       convertCt(light);
-    } else if (new_scene == 6) {
+    } else if (new_scene == 6) {  //Dimmed
       lights[light].bri = 1;
       lights[light].x = 0.561;
       lights[light].y = 0.4042;
       lights[light].colorMode = 1;
       convertXy(light);
-    } else if (new_scene == 7) {
+    } else if (new_scene == 7) {  // Nightlight
       lights[light].bri = 203;
       lights[light].x = 0.380328;
       lights[light].y = 0.39986;
       lights[light].colorMode = 1;
       convertXy(light);
-    } else if (new_scene == 8) {
+    } else if (new_scene == 8) {  // Savana Sunset
       lights[light].bri = 112;
       lights[light].x = 0.359168;
       lights[light].y = 0.28807;
       lights[light].colorMode = 1;
       convertXy(light);
-    } else if (new_scene == 9) {
+    } else if (new_scene == 9) {  // Tropical Twilight
       lights[light].bri = 142;
       lights[light].x = 0.267102;
       lights[light].y = 0.23755;
       lights[light].colorMode = 1;
       convertXy(light);
-    } else if (new_scene == 10) {
+    } else if (new_scene == 10) {  // Arctic Aurora
       lights[light].bri = 216;
       lights[light].x = 0.393209;
       lights[light].y = 0.29961;
       lights[light].colorMode = 1;
       convertXy(light);
-    } else {
+    } else {  // Spring Blossom
       lights[light].bri = 144;
       lights[light].ct = 447;
       lights[light].colorMode = 2;
@@ -830,14 +830,14 @@ void setup() {
 
   pinMode(onPin, INPUT);
   pinMode(offPin, INPUT);
-  
+
 
   server.on("/fireflies", HTTP_GET, []() {
     if (server.hasArg("fireflies")) {
       fireflies = server.arg("fireflies").toInt();
     }
-    if (!fireflies){
-      while (numFireflies){
+    if (!fireflies) {
+      while (numFireflies) {
         delFirefly();
       }
     }
@@ -934,6 +934,9 @@ void setup() {
     root["ct"] = lights[light].ct;
     root["hue"] = lights[light].hue;
     root["sat"] = lights[light].sat;
+    root["r"] = lights[light].colors[0];
+    root["g"] = lights[light].colors[1];
+    root["b"] = lights[light].colors[2];
     if (lights[light].colorMode == 1)
       root["colormode"] = "xy";
     else if (lights[light].colorMode == 2)
