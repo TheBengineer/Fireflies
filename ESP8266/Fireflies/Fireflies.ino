@@ -37,6 +37,8 @@ char lightName[LIGHT_NAME_MAX_LENGTH] = "Hue WS2812 strip";
 uint8_t scene, startup;
 uint8_t onPin = 2;    // D4 = pin 2
 uint8_t offPin = 14;  // D5 = pin 14
+unsigned long lastOnTime = 0;
+unsigned long lastOffTime = 0;
 bool hwSwitch = true;
 uint8_t rgb_multiplier[] = { 100, 100, 100 };  // light multiplier in percentage /R, G, B/
 
@@ -265,7 +267,7 @@ void apply_scene(uint8_t new_scene) {
       lights[light].y = 0.329;
       lights[light].colorMode = 1;
       convertXy(light);
-    } 
+    }
   }
 }
 
@@ -463,49 +465,55 @@ void lightEngine() {
     delay(6);
     inTransition = false;
   } else if (hwSwitch == true) {
-    Serial.print("Reading HW On:");
-    Serial.print(digitalRead(onPin));
-    Serial.print(" Off:");
-    Serial.println(digitalRead(offPin));
+    bool onPressed = !digitalRead(onPin);    // Pins are active low
+    bool offPressed = !digitalRead(offPin);  // Pins are active low
+    unsigned long now = millis();
 
-    if (digitalRead(onPin) == LOW) {
-      int i = 0;
-      while (digitalRead(onPin) == LOW && i < 30) {
-        delay(20);
-        i++;
-      }
-      for (int light = 0; light < lightsCount; light++) {
-        if (i < 30) {
-          // there was a short press
-          lights[light].lightState = true;
-        } else {
-          // there was a long press
-          lights[light].bri += 56;
-          if (lights[light].bri > 255) {
+    Serial.print("Pressed On:");
+    Serial.print(onPressed);
+    Serial.print(" Off:");
+    Serial.println(offPressed);
+    if (onPressed) {
+      if (lastOnTime == 0) {
+        lastOnTime = now;
+      } else {
+        if (now - lastOnTime > 500) {  // long press happening
+          lastOnTime += 100;           // Debounce
+          lights[0].bri += 2;
+          if (lights[0].bri > 50) {  // 50 is max brightrness for these strands
             // don't increase the brightness more then maximum value
-            lights[light].bri = 255;
+            lights[0].bri = 50;
           }
         }
       }
-    } else if (digitalRead(offPin) == LOW) {
-      int i = 0;
-      while (digitalRead(offPin) == LOW && i < 30) {
-        delay(20);
-        i++;
+    } else if (lastOnTime != 0) {
+      if (now - lastOnTime < 400) {  // Short press
+        scene++;
+        lights[0].lightState = true;
+        apply_scene(scene);
       }
-      for (int light = 0; light < lightsCount; light++) {
-        if (i < 30) {
-          // there was a short press
-          lights[light].lightState = false;
-        } else {
-          // there was a long press
-          lights[light].bri -= 56;
-          if (lights[light].bri < 1) {
-            // don't decrease the brightness less than minimum value.
-            lights[light].bri = 1;
+      lastOnTime = 0;
+    }
+
+    if (offPressed) {
+      if (lastOffTime == 0) {
+        lastOffTime = now;
+      } else {
+        if (now - lastOffTime > 500) {  // long press happening
+          lastOffTime += 100;           // Debounce
+          lights[0].bri -= 2;
+          if (lights[0].bri < 1) {  // 1 is min brightrness for these strands
+            // don't increase the brightness more then maximum value
+            lights[0].bri = 1;
           }
         }
       }
+    } else if (lastOffTime != 0) {
+      if (now - lastOffTime < 400) {  // Short press
+        scene = 0;
+        lights[0].lightState = false;
+      }
+      lastOffTime = 0;
     }
   }
 
