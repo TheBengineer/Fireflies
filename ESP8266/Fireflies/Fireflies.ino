@@ -468,11 +468,6 @@ void lightEngine() {
     bool onPressed = !digitalRead(onPin);    // Pins are active low
     bool offPressed = !digitalRead(offPin);  // Pins are active low
     unsigned long now = millis();
-
-    Serial.print("Pressed On:");
-    Serial.print(onPressed);
-    Serial.print(" Off:");
-    Serial.println(offPressed);
     if (onPressed) {
       if (lastOnTime == 0) {
         lastOnTime = now;
