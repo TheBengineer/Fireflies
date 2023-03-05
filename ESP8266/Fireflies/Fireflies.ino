@@ -511,6 +511,7 @@ void lightEngine() {
     } else if (lastOffTime != 0) {
       if (now - lastOffTime < 400) {  // Short press
         scene = 0;
+        fireflies = 0;
         lights[0].lightState = false;
       }
       lastOffTime = 0;
