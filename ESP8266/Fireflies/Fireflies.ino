@@ -825,7 +825,7 @@ void setup() {
         const char* key = state.key().c_str();
         int light = atoi(key) - 1;
         JsonObject values = state.value();
-        int transitiontime = 4;
+        int transitiontime = 1;
 
         if (values.containsKey("xy")) {
           lights[light].x = values["xy"][0];
