@@ -461,10 +461,11 @@ void lightEngine() {
       }
     }
   }
-  if (inTransition) {
+  // if (inTransition) {
     delay(6);
     inTransition = false;
-  } else if (hwSwitch == true) {
+  } 
+  if (hwSwitch == true) {
     bool onPressed = !digitalRead(onPin);    // Pins are active low
     bool offPressed = !digitalRead(offPin);  // Pins are active low
     unsigned long now = millis();
@@ -479,6 +480,7 @@ void lightEngine() {
             // don't increase the brightness more then maximum value
             lights[0].bri = 50;
           }
+          processLightdata(0, 2.0);
         }
       }
     } else if (lastOnTime != 0) {
@@ -501,6 +503,7 @@ void lightEngine() {
             // don't increase the brightness more then maximum value
             lights[0].bri = 1;
           }
+          processLightdata(0, 2.0);
         }
       }
     } else if (lastOffTime != 0) {
@@ -508,6 +511,7 @@ void lightEngine() {
         scene = 0;
         fireflies = 0;
         lights[0].lightState = false;
+        processLightdata(0, 2.0);
       }
       lastOffTime = 0;
     }
@@ -910,6 +914,7 @@ void setup() {
     root["b"] = lights[light].colors[2];
     root["hwon"] = digitalRead(onPin);
     root["hwoff"] = digitalRead(offPin);
+    root["scene"] = scene;
     if (lights[light].colorMode == 1)
       root["colormode"] = "xy";
     else if (lights[light].colorMode == 2)
