@@ -908,6 +908,8 @@ void setup() {
     root["r"] = lights[light].colors[0];
     root["g"] = lights[light].colors[1];
     root["b"] = lights[light].colors[2];
+    root["hwon"] = digitalRead(onPin);
+    root["hwoff"] = digitalRead(offPin);
     if (lights[light].colorMode == 1)
       root["colormode"] = "xy";
     else if (lights[light].colorMode == 2)
