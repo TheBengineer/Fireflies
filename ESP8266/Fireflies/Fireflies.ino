@@ -55,7 +55,7 @@ RgbColor red = RgbColor(255, 0, 0);
 RgbColor green = RgbColor(0, 255, 0);
 RgbColor white = RgbColor(255);
 RgbColor black = RgbColor(0);
-RgbColor fireflyColor = RgbColor(226, 235, 52);
+RgbColor fireflyColor = RgbColor(226, 235, 30);
 
 const int maxFireflies = 10;
 uint8_t numFireflies = 0;
