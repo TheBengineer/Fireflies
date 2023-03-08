@@ -35,8 +35,8 @@ unsigned long lastEPMillis;
 //settings
 char lightName[LIGHT_NAME_MAX_LENGTH] = "Hue WS2812 strip";
 uint8_t scene, startup;
-uint8_t onPin = 2;    // D4 = pin 2
-uint8_t offPin = 14;  // D5 = pin 14
+uint8_t offPin = 2;    // D4 = pin 2
+uint8_t onPin = 14;  // D5 = pin 14
 unsigned long lastOnTime = 0;
 unsigned long lastOffTime = 0;
 bool hwSwitch = true;
@@ -132,8 +132,8 @@ void convertHue(uint8_t light) {
 
 void convertXy(uint8_t light) {
   int optimal_bri = lights[light].bri;
-  if (optimal_bri < 5) {
-    optimal_bri = 5;
+  if (optimal_bri < 1) {
+    optimal_bri = 1;
   }
   float Y = lights[light].y;
   float X = lights[light].x;
@@ -461,7 +461,7 @@ void lightEngine() {
       }
     }
   }
-  // if (inTransition) {
+  if (inTransition) {
     delay(6);
     inTransition = false;
   } 
@@ -521,6 +521,7 @@ void lightEngine() {
     for (int pixel = 0; pixel < pixelCount; pixel++) {
       if (firefliesOffsets[pixel] > 0) {
         float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
+
         RgbColor animationLevel = RgbColor(fireflyColor.R * ffBrightness, fireflyColor.G * ffBrightness, fireflyColor.B * ffBrightness);
 
         strip->SetPixelColor(pixel, animationLevel);
