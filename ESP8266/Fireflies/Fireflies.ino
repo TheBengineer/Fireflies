@@ -41,6 +41,8 @@ unsigned long lastOnTime = 0;
 unsigned long lastOffTime = 0;
 bool hwSwitch = true;
 uint8_t rgb_multiplier[] = { 100, 100, 100 };  // light multiplier in percentage /R, G, B/
+bool changed = false;
+
 
 uint8_t lightsCount = 1;
 uint16_t dividedLightsArray[100];
@@ -371,7 +373,7 @@ void processFireflies() {
 }
 
 void lightEngine() {
-  bool changed = false;
+  
   for (int light = 0; light < lightsCount; light++) {
     if (lights[light].lightState) {
       if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2] || fireflies) {
@@ -532,6 +534,7 @@ void lightEngine() {
 
   if (changed) {
     strip->Show();
+    changed = false;
   }
 }
 
