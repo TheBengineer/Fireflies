@@ -35,7 +35,7 @@ unsigned long lastEPMillis;
 //settings
 char lightName[LIGHT_NAME_MAX_LENGTH] = "Hue WS2812 strip";
 uint8_t scene, startup;
-uint8_t offPin = 2;    // D4 = pin 2
+uint8_t offPin = 2;  // D4 = pin 2
 uint8_t onPin = 14;  // D5 = pin 14
 unsigned long lastOnTime = 0;
 unsigned long lastOffTime = 0;
@@ -64,6 +64,7 @@ uint8_t numFireflies = 0;
 uint16_t firefliesOffsets[100];
 cppQueue firefliesQueue(sizeof(uint8_t), 10, FIFO);
 int fireflies = 0;
+float firefliesBrightness = 0.1;
 long loop_time = 0;
 Ticker firefliesTicker;
 
@@ -373,7 +374,7 @@ void processFireflies() {
 }
 
 void lightEngine() {
-  
+
   for (int light = 0; light < lightsCount; light++) {
     if (lights[light].lightState) {
       if (lights[light].colors[0] != lights[light].currentColors[0] || lights[light].colors[1] != lights[light].currentColors[1] || lights[light].colors[2] != lights[light].currentColors[2] || fireflies) {
@@ -466,7 +467,7 @@ void lightEngine() {
   if (inTransition) {
     delay(6);
     inTransition = false;
-  } 
+  }
   if (hwSwitch == true) {
     bool onPressed = !digitalRead(onPin);    // Pins are active low
     bool offPressed = !digitalRead(offPin);  // Pins are active low
@@ -522,7 +523,7 @@ void lightEngine() {
   if (fireflies) {
     for (int pixel = 0; pixel < pixelCount; pixel++) {
       if (firefliesOffsets[pixel] > 0) {
-        float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]);
+        float ffBrightness = fireflyLevel(loop_time + firefliesOffsets[pixel]) * firefliesBrightness;
 
         RgbColor animationLevel = RgbColor(fireflyColor.R * ffBrightness, fireflyColor.G * ffBrightness, fireflyColor.B * ffBrightness);
 
@@ -809,8 +810,11 @@ void setup() {
 
 
   server.on("/fireflies", HTTP_GET, []() {
-    if (server.hasArg("fireflies")) {
-      fireflies = server.arg("fireflies").toInt();
+    if (server.hasArg("rate")) {
+      fireflies = server.arg("rate").toInt();
+    }
+    if (server.hasArg("brightness")) {
+      firefliesBrightness = server.arg("brightness").toFloat();
     }
     if (!fireflies) {
       while (numFireflies) {
