@@ -907,7 +907,8 @@ void setup() {
   });
 
   server.on("/state", HTTP_GET, []() {
-    uint8_t light = server.arg("light").toInt() - 1;
+    uint8_t light = server.hasArg("light") ? server.arg("light").toInt() -1 : 0;
+    if (light < 0){light = 0;}
     DynamicJsonDocument root(1024);
     root["on"] = lights[light].lightState;
     root["bri"] = lights[light].bri;
