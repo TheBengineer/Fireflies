@@ -247,27 +247,27 @@ void infoLight(RgbColor color) {
 void apply_scene(uint8_t new_scene) {
   for (uint8_t light = 0; light < lightsCount; light++) {
     if (new_scene == 1) {  // Nightlight
-      lights[light].bri = 2;
-      lights[light].x = 0.5736;
-      lights[light].y = 0.3295;
+      lights[light].bri = 3;
+      lights[light].x = 0.581799984;
+      lights[light].y = 0.355100006;
       lights[light].colorMode = 1;
       convertXy(light);
     } else if (new_scene == 2) {  // Night
-      lights[light].bri = 8;
-      lights[light].x = 0.5736;
-      lights[light].y = 0.3295;
+      lights[light].bri = 7;
+      lights[light].x = 0.581799984;
+      lights[light].y = 0.355100006;
       lights[light].colorMode = 1;
       convertXy(light);
     } else if (new_scene == 3) {  // Morning
-      lights[light].bri = 8;
-      lights[light].x = 0.3227;
-      lights[light].y = 0.329;
+      lights[light].bri = 10;
+      lights[light].x = 0.6041;
+      lights[light].y = 0.3479;
       lights[light].colorMode = 1;
       convertXy(light);
     } else {  // Day
       lights[light].bri = 43;
-      lights[light].x = 0.3227;
-      lights[light].y = 0.329;
+      lights[light].x = 0.5463;
+      lights[light].y = 0.3527;
       lights[light].colorMode = 1;
       convertXy(light);
     }
@@ -822,7 +822,13 @@ void setup() {
       }
     }
     strip->Show();
-    server.send(200, "text/html", String(fireflies));
+    DynamicJsonDocument root(1024);
+    root["rate"] = fireflies;
+    root["brightness"] = firefliesBrightness;
+    root["active"] = numFireflies;
+    String output;
+    serializeJson(root, output);
+    server.send(200, "text/plain", output);
   });
 
   server.on("/state", HTTP_PUT, []() {
@@ -907,8 +913,8 @@ void setup() {
   });
 
   server.on("/state", HTTP_GET, []() {
-    uint8_t light = server.hasArg("light") ? server.arg("light").toInt() -1 : 0;
-    if (light < 0){light = 0;}
+    uint8_t light = server.hasArg("light") ? server.arg("light").toInt() - 1 : 0;
+    if (light < 0) { light = 0; }
     DynamicJsonDocument root(1024);
     root["on"] = lights[light].lightState;
     root["bri"] = lights[light].bri;
