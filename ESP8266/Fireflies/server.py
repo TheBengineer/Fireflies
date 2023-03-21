@@ -4,7 +4,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 # a server that serves index.html
 def index(req):
     with open("index.html", "r") as f:
-        return f.read()
+        return f.read().replace("\\", "")
+
 
 class MyHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
