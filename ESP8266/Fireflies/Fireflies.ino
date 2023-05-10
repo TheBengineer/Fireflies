@@ -35,8 +35,8 @@ unsigned long lastEPMillis;
 //settings
 char lightName[LIGHT_NAME_MAX_LENGTH] = "Hue WS2812 strip";
 uint8_t scene, startup;
-uint8_t offPin = 2;  // D4 = pin 2
-uint8_t onPin = 14;  // D5 = pin 14
+uint8_t offPin = 2;  // D4 = gpio 2
+uint8_t onPin = 0;  // D3 = gpio 0
 unsigned long lastOnTime = 0;
 unsigned long lastOffTime = 0;
 bool hwSwitch = true;
